@@ -1,0 +1,23 @@
+# Paste your keys after the = signs, then save this file. Never share it.
+
+# --- Jev (and Claude) -------------------------------------------------------
+# Vercel AI Gateway key: https://vercel.com/dashboard -> AI Gateway -> API Keys -> Create key
+AI_GATEWAY_API_KEY=
+
+# Optional: a direct TypeSafe key, if you're off their waitlist.
+TYPESAFE_API_KEY=
+
+# --- 24/7 bot only (Path 2) -------------------------------------------------
+BYBIT_API_KEY=
+BYBIT_API_SECRET=
+BYBIT_MODE=demo
+
+# Hard limits, always on:
+MAX_POSITION_USD=1000
+MAX_DAILY_LOSS_USD=50
+
+# Claude model for the big-picture brain (via the same Vercel key).
+CLAUDE_MODEL=anthropic/claude-sonnet-5
+
+# Real money: leave blank until after weeks of demo results.
+JEV_LIVE_CONFIRM=

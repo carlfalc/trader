@@ -1,0 +1,13 @@
+[project]
+name = "jev-starter"
+version = "1.0.0"
+description = "A Jev trading bot starter: live dashboard, news terminal, a strategy file you edit, and an optional 24/7 Bybit bot (demo first)."
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "pandas>=2.0",
+    "python-dotenv>=1.0",
+    "rich>=13",
+    "websocket-client>=1.7",
+    "pybit>=5.8",
+]

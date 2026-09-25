@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev Newsroom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#06080c;--bg2:#0c1016;--panel:#0e131a;--line:#1a222d;--line2:#253041;--fg:#e9eef4;--muted:#8a95a5;--dim:#586272;
+--jev:#8b7bff;--good:#3fd68a;--bad:#ff5d6c;--amber:#f5b53d;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;color:var(--fg);font:14px/1.45 Inter,-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;
+background:radial-gradient(1000px 520px at 90% -15%,rgba(139,123,255,.18),transparent 60%),radial-gradient(900px 500px at -10% 115%,rgba(245,181,61,.05),transparent 60%),var(--bg)}
+.app{height:100vh;min-height:680px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:12px;padding:14px 18px 12px;max-width:1760px;margin:0 auto}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font:800 23px/1 Inter;letter-spacing:-.025em}
+.brand em{font-style:normal;background:linear-gradient(95deg,var(--jev),#d6ccff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.spacer{flex:1}
+.pill{font:500 11.5px var(--mono);padding:6px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--muted);background:rgba(12,16,22,.7);display:flex;align-items:center;gap:7px}
+.pill.model{color:#cfc7ff;border-color:rgba(139,123,255,.45);background:rgba(139,123,255,.12)}
+.pill.replay{color:var(--amber);border-color:rgba(245,181,61,.4);background:rgba(245,181,61,.08)}
+.live{width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 10px var(--amber);animation:pulse 1.3s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.progress{width:180px;height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--jev),#c7bbff);transition:width .5s}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:12px;min-height:0}
+.card{background:linear-gradient(180deg,rgba(14,19,26,.95),rgba(12,16,22,.95));border:1px solid var(--line);border-radius:18px;min-height:0;overflow:hidden}
+.eyebrow{font:600 10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.wire{display:flex;flex-direction:column}
+.wire .eyebrow{padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+.list{flex:1;min-height:0;overflow:hidden;padding:6px 8px}
+.item{padding:10px 10px;border-radius:12px;border:1px solid transparent;margin-bottom:4px;transition:background .4s,border-color .4s}
+.item.now{background:rgba(139,123,255,.09);border-color:rgba(139,123,255,.45)}
+.item.enter{animation:enter .6s ease-out}
+@keyframes enter{from{transform:translateY(-10px);opacity:0}}
+.meta{display:flex;gap:10px;align-items:center;font:11px var(--mono);color:var(--dim);margin-bottom:4px}
+.src{color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.hl{font-size:14px;line-height:1.35;color:var(--fg)}
+.item:not(.now) .hl{color:#b9c2cd}
+.tags{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;align-items:center}
+.chip{font:700 10.5px var(--mono);letter-spacing:.06em;padding:3px 7px;border-radius:6px;background:var(--line);color:var(--muted)}
+.chip.coin{color:#cfc7ff;background:rgba(139,123,255,.16)}
+.chip.bull{color:var(--good);background:rgba(63,214,138,.12)} .chip.bear{color:var(--bad);background:rgba(255,93,108,.12)}
+.chip.trade{color:#06080c;background:var(--fg)}
+.imp{display:inline-flex;gap:3px} .imp i{width:7px;height:7px;border-radius:2px;background:var(--line2)} .imp i.on{background:var(--amber)}
+.reading{font:11px var(--mono);color:var(--jev)} .reading::after{content:"▍";animation:pulse .8s infinite}
+.right{display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;min-height:0}
+.read{padding:16px 18px}
+.readhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.lat{font:600 12px var(--mono);color:var(--jev);padding:4px 9px;border-radius:999px;background:rgba(139,123,255,.12)}
+.big{font:700 22px/1.3 Inter;letter-spacing:-.015em;min-height:58px}
+.big .cursor{display:inline-block;width:10px;height:22px;background:var(--jev);vertical-align:-3px;margin-left:2px;animation:pulse .8s infinite}
+.qs{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:18px;margin-top:14px}
+.q h4{margin:0 0 8px;font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.bars{display:grid;grid-template-columns:auto 1fr 36px;gap:6px 8px;align-items:center;font:11.5px var(--mono);color:var(--muted)}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;transition:width .45s ease}
+.bars .v{text-align:right;color:var(--fg)} .bars .pick{color:var(--fg);font-weight:700}
+.meter{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:2px}
+.meter div{height:26px;border-radius:6px;background:var(--line);display:grid;place-items:center;font:600 10px var(--mono);color:var(--dim);transition:background .4s,color .4s}
+.meter div.on{background:rgba(245,181,61,.25);color:var(--amber)} .meter div.top{background:var(--amber);color:#06080c}
+.decision{margin-top:14px;padding:11px 14px;border-radius:12px;font:700 15px var(--mono);letter-spacing:.02em;display:flex;justify-content:space-between;align-items:center;
+background:var(--line);color:var(--muted);transition:background .3s,color .3s}
+.decision.long{background:rgba(63,214,138,.14);color:var(--good);box-shadow:inset 0 0 0 1px rgba(63,214,138,.4)}
+.decision.short{background:rgba(255,93,108,.14);color:var(--bad);box-shadow:inset 0 0 0 1px rgba(255,93,108,.4)}
+.decision small{font:500 12px var(--mono);color:var(--muted)}
+.next{display:flex;flex-direction:column;padding:14px 16px 10px}
+.nexthead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.verdict{font:800 13px var(--mono);letter-spacing:.1em;padding:5px 10px;border-radius:8px}
+.verdict.good{color:#06080c;background:var(--good)} .verdict.bad{color:var(--fg);background:var(--line2)} .verdict.pass{color:var(--muted);background:var(--line)}
+.chart{position:relative;flex:1;min-height:0}
+.chart svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.ax{fill:var(--dim);font:10.5px var(--mono)} .gl{stroke:var(--line)}
+.score{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.s{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+.s span{display:block;font-size:11.5px;color:var(--muted)}
+.s b{font:700 24px/1.2 var(--mono);letter-spacing:-.02em}
+.g{color:var(--good)} .r{color:var(--bad)}
+.wait{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);font:13px var(--mono)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><em>Jev</em> Newsroom</div>
+    <div class="pill replay"><span class="live"></span><span id="replayText">REPLAY · real headlines</span></div>
+    <div class="spacer"></div>
+    <div class="pill" id="count">0 / 0</div>
+    <div class="progress"><i id="prog"></i></div>
+    <div class="pill model" id="model">typesafe-ai/jev</div>
+  </header>
+
+  <div class="grid">
+    <div class="card wire">
+      <div class="eyebrow"><span>Newswire</span><span id="wireNote">cointelegraph · coindesk · decrypt · the block</span></div>
+      <div class="list" id="list"></div>
+    </div>
+    <div class="right">
+      <div class="card read">
+        <div class="readhead"><div class="eyebrow">Jev's read</div><div class="lat" id="lat">reading…</div></div>
+        <div class="big" id="big"></div>
+        <div class="qs">
+          <div class="q"><h4>Which coin?</h4><div class="bars" id="qCoin"></div></div>
+          <div class="q"><h4>Which way?</h4><div class="bars" id="qDir"></div></div>
+          <div class="q"><h4>How big?</h4><div class="meter" id="qImp"></div><div class="bars" style="margin-top:8px"><span>score</span><span></span><span class="v" id="impVal">–</span></div></div>
+        </div>
+        <div class="decision" id="decision">waiting for the first headline…</div>
+      </div>
+      <div class="card next">
+        <div class="nexthead"><div class="eyebrow" id="nextTitle">What the market did next</div><div id="verdict"></div></div>
+        <div class="chart" id="chart"><div class="wait">the real price move appears once Jev has answered</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="score">
+    <div class="s"><span>Headlines read</span><b id="sRead">0</b></div>
+    <div class="s"><span>Tagged to a coin</span><b id="sTag">0</b></div>
+    <div class="s"><span>Worth trading (Notable+)</span><b id="sTrades">0</b></div>
+    <div class="s"><span>Direction right</span><b id="sRight">–</b></div>
+    <div class="s"><span>After costs, 60-min holds</span><b id="sNet">–</b></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const COINS = ["BTC", "ETH", "SOL", "whole_crypto_market", "none"];
+const COIN_LABEL = {BTC: "BTC", ETH: "ETH", SOL: "SOL", whole_crypto_market: "market", none: "none"};
+const IMPACT = ["Noise", "Minor", "Notable", "Major"];
+let S = null, seen = new Set(), typed = {key: null, n: 0};
+
+const hhmm = (t) => new Date(t * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", hour12: false});
+const sgn = (v, d = 1) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d);
+
+async function poll() {
+  try {
+    const r = await fetch("/results/newsroom.json?_=" + Date.now(), {cache: "no-store"});
+    if (r.ok) { S = await r.json(); render(); }
+  } catch (e) {}
+}
+
+function tagsFor(it) {
+  if (!it.answer) return it.error ? `<span class="chip">skipped</span>` : `<span class="reading">Jev reading</span>`;
+  const dir = it.direction, imp = Math.round(it.impact);
+  return (it.coin ? `<span class="chip coin">${COIN_LABEL[it.answer.asset.choice] || it.coin}</span>` : `<span class="chip">no coin</span>`) +
+    `<span class="chip ${dir === "bullish" ? "bull" : dir === "bearish" ? "bear" : ""}">${dir === "bullish" ? "▲ BULLISH" : dir === "bearish" ? "▼ BEARISH" : "NEUTRAL"}</span>` +
+    `<span class="imp">${[0, 1, 2, 3].map((i) => `<i class="${i <= imp ? "on" : ""}"></i>`).join("")}</span>` +
+    (it.trade ? `<span class="chip trade">TRADE</span>` : "");
+}
+
+function render() {
+  const feed = S.feed, cur = feed.at(-1);
+  $("count").textContent = `${S.index} / ${S.total}`;
+  $("prog").style.width = (100 * S.index / Math.max(1, S.total)) + "%";
+  $("model").textContent = S.model;
+  $("replayText").textContent = `REPLAY${S.round > 1 ? " · round " + S.round : ""} · last ${S.hours}h of real headlines · Jev answers live`;
+
+  $("list").innerHTML = feed.slice(-9).reverse().map((it, i) => {
+    const key = it.headline, fresh = !seen.has(key); seen.add(key);
+    return `<div class="item ${i === 0 ? "now" : ""} ${fresh ? "enter" : ""}"><div class="meta"><span>${hhmm(it.published)}</span><span class="src">${it.source}</span></div>` +
+      `<div class="hl">${it.headline}</div><div class="tags">${tagsFor(it)}</div></div>`;
+  }).join("");
+
+  const sc = S.score;
+  $("sRead").textContent = sc.read; $("sTag").textContent = sc.tagged; $("sTrades").textContent = sc.trades;
+  $("sRight").textContent = sc.trades ? `${sc.right} of ${sc.trades}` : "–";
+  $("sNet").textContent = sc.trades ? sgn(sc.net_bps, 0) + " bps" : "–";
+  $("sNet").className = sc.net_bps > 0 ? "g" : "";
+  if (cur) renderRead(cur);
+}
+
+function bars(el, opts, probs, pick, colour) {
+  el.innerHTML = opts.map((o) => {
+    const p = probs ? probs[o] || 0 : 0;
+    return `<span class="${o === pick ? "pick" : ""}">${COIN_LABEL[o] || o}</span><div class="bar"><i style="width:${(100 * p).toFixed(1)}%;background:${colour(o)}"></i></div><span class="v">${probs ? Math.round(100 * p) + "%" : ""}</span>`;
+  }).join("");
+}
+
+function renderRead(it) {
+  // type the headline out like it's coming off the wire
+  if (typed.key !== it.headline) { typed = {key: it.headline, n: 0}; }
+  typed.n = Math.min(it.headline.length, typed.n + 6);
+  $("big").innerHTML = it.headline.slice(0, typed.n) + (typed.n < it.headline.length || !it.answer ? `<span class="cursor"></span>` : "");
+  const a = it.answer;
+  $("lat").textContent = a ? `answered in ${it.ms} ms` : it.error ? "skipped" : "reading…";
+  bars($("qCoin"), COINS, a && a.asset.probs, a && a.asset.choice, () => "var(--jev)");
+  bars($("qDir"), ["bullish", "bearish", "neutral"], a && a.direction.probs, a && a.direction.choice,
+       (o) => o === "bullish" ? "var(--good)" : o === "bearish" ? "var(--bad)" : "var(--dim)");
+  const imp = a ? a.impact.score : -1;
+  $("qImp").innerHTML = IMPACT.map((l, i) => `<div class="${a && i <= Math.round(imp) ? (i === Math.round(imp) ? "top" : "on") : ""}">${l}</div>`).join("");
+  $("impVal").textContent = a ? imp.toFixed(2) : "–";
+
+  const d = $("decision");
+  if (!a) { d.className = "decision"; d.innerHTML = it.error ? "skipped · Jev didn't answer" : "Jev is reading the headline…"; }
+  else if (it.trade) {
+    d.className = "decision " + (it.side > 0 ? "long" : "short");
+    d.innerHTML = `<span>TRADE · ${it.side > 0 ? "LONG" : "SHORT"} ${it.coin}</span><small>1 min after the news · hold ${S.after_min} min</small>`;
+  } else {
+    const why = !it.coin ? "no tradeable coin" : it.direction === "neutral" ? "no clear direction" : "not big enough to trade";
+    d.className = "decision"; d.innerHTML = `<span>NO TRADE · ${why}</span><small>impact ${IMPACT[Math.round(it.impact)]}</small>`;
+  }
+  renderChart(it);
+}
+
+function renderChart(it) {
+  const el = $("chart"), v = $("verdict");
+  if (!it.answer) { el.innerHTML = `<div class="wait">waiting for Jev…</div>`; v.innerHTML = ""; return; }
+  const coin = it.coin || "BTC", path = (it.paths || {})[coin];
+  $("nextTitle").textContent = `What ${coin} did next · actual price, ${S.after_min} minutes after the headline`;
+  if (!path || path.length < 2) { el.innerHTML = `<div class="wait">no price data for this one</div>`; v.innerHTML = ""; return; }
+  const W = el.clientWidth, H = el.clientHeight; if (W < 50 || H < 50) return;
+  const l = 48, r = 70, t = 14, b = 22;
+  const reveal = Math.min(1, (Date.now() / 1000 - it.answered) / 2.2);
+  const lastMin = -S.before_min + reveal * (S.after_min + S.before_min);
+  const shown = path.filter((p) => p[0] <= lastMin);
+  const vals = path.map((p) => p[1]).concat([0]);
+  let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.15 || 5; lo -= pad; hi += pad;
+  const X = (m) => l + (m + S.before_min) / (S.after_min + S.before_min) * (W - l - r), Y = (bp) => t + (hi - bp) / (hi - lo) * (H - t - b);
+  let s = `<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#8b7bff" stop-opacity=".25"/><stop offset="1" stop-color="#8b7bff" stop-opacity="0"/></linearGradient></defs>`;
+  const step = hi - lo > 80 ? 25 : hi - lo > 30 ? 10 : 5;
+  for (let g = Math.ceil(lo / step) * step; g <= hi; g += step)
+    s += `<line class="${g === 0 ? "gl zero" : "gl"}" x1="${l}" x2="${W - r}" y1="${Y(g)}" y2="${Y(g)}" ${g === 0 ? 'stroke="#3a4556"' : ""}/><text class="ax" x="${l - 8}" y="${Y(g) + 4}" text-anchor="end">${g > 0 ? "+" : ""}${g}</text>`;
+  for (const m of [-10, 0, 15, 30, 45, 60]) s += `<text class="ax" x="${X(m)}" y="${H - 5}" text-anchor="middle">${m === 0 ? "news" : (m > 0 ? "+" : "") + m + "m"}</text>`;
+  if (it.trade) s += `<rect x="${X(0)}" y="${t}" width="${X(S.after_min) - X(0)}" height="${H - t - b}" fill="${it.side > 0 ? "rgba(63,214,138,.05)" : "rgba(255,93,108,.05)"}"/>`;
+  s += `<line x1="${X(0)}" x2="${X(0)}" y1="${t}" y2="${H - b}" stroke="var(--jev)" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+  if (shown.length > 1) {
+    const pts = shown.map((p) => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
+    s += `<polygon points="${X(shown[0][0])},${H - b} ${pts} ${X(shown.at(-1)[0])},${H - b}" fill="url(#g)"/><polyline points="${pts}" fill="none" stroke="#e6ecf3" stroke-width="2" stroke-linejoin="round"/>`;
+    const e = shown.at(-1);
+    s += `<circle cx="${X(e[0])}" cy="${Y(e[1])}" r="4.5" fill="#fff"/><text x="${X(e[0]) + 9}" y="${Y(e[1]) + 4}" style="fill:var(--fg);font:700 12px var(--mono);paint-order:stroke;stroke:var(--bg);stroke-width:4px">${sgn(e[1])} bps</text>`;
+  }
+  el.innerHTML = s + "</svg>";
+  if (reveal < 1) { v.innerHTML = ""; return; }
+  const move = path.find((p) => p[0] === S.after_min)?.[1] ?? path.at(-1)[1];
+  if (it.trade) {
+    const right = it.side * move > 0;
+    v.innerHTML = `<span class="verdict ${right ? "good" : "bad"}">${right ? "RIGHT" : "WRONG"} · ${sgn(it.net_bps ?? move)} bps after costs</span>`;
+  } else {
+    v.innerHTML = `<span class="verdict pass">JEV PASSED · move was ${sgn(move)} bps</span>`;
+  }
+}
+
+setInterval(poll, 250); poll();
+setInterval(() => S && S.feed.length && renderRead(S.feed.at(-1)), 60);
+</script>
+</body>
+</html>

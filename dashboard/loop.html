@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev Loop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#06080c;--bg2:#0c1016;--panel:#0e131a;--line:#1a222d;--line2:#253041;--fg:#e9eef4;--muted:#8a95a5;--dim:#586272;
+--jev:#8b7bff;--good:#3fd68a;--bad:#ff5d6c;--late:#f5b53d;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;color:var(--fg);font:14px/1.45 Inter,-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;
+background:radial-gradient(1000px 520px at 90% -15%,rgba(139,123,255,.18),transparent 60%),radial-gradient(900px 500px at -10% 115%,rgba(63,214,138,.06),transparent 60%),var(--bg)}
+.app{height:100vh;min-height:680px;display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;padding:14px 18px 12px;max-width:1760px;margin:0 auto}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font:800 23px/1 Inter;letter-spacing:-.025em}
+.brand em{font-style:normal;background:linear-gradient(95deg,var(--jev),#d6ccff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stats{display:flex;gap:16px;font:12px var(--mono);color:var(--dim)}
+.stats b{color:var(--fg);font-weight:500}
+.spacer{flex:1}
+.pill{font:500 11.5px var(--mono);padding:6px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--muted);background:rgba(12,16,22,.7);display:flex;align-items:center;gap:7px}
+.pill.model{color:#cfc7ff;border-color:rgba(139,123,255,.45);background:rgba(139,123,255,.12)}
+.live{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good);animation:pulse 1.3s infinite}
+.done .live{background:var(--dim);box-shadow:none;animation:none}
+@keyframes pulse{50%{opacity:.35}}
+.grid{display:grid;grid-template-columns:minmax(0,2.05fr) minmax(0,1fr);gap:12px;min-height:0}
+.card{background:linear-gradient(180deg,rgba(14,19,26,.95),rgba(12,16,22,.95));border:1px solid var(--line);border-radius:18px;min-height:0;overflow:hidden}
+.main{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;padding:16px 18px 12px;gap:10px}
+.pxrow{display:flex;align-items:flex-start;gap:20px}
+.price{font:800 clamp(40px,4.6vw,68px)/1 var(--mono);letter-spacing:-.04em;transition:color .25s}
+.price.up{color:var(--good)} .price.down{color:var(--bad)}
+.sub{display:flex;gap:16px;margin-top:8px;font:12.5px var(--mono);color:var(--muted);flex-wrap:wrap}
+.sub b{font-weight:600}
+.action{margin-left:auto;text-align:right}
+.action .verb{font:700 34px/1 Inter;letter-spacing:-.02em;transition:color .2s}
+.action .meta{font:12px var(--mono);color:var(--muted);margin-top:8px}
+.statebox{font:11.5px/1.7 var(--mono);color:var(--muted);background:rgba(6,8,12,.55);border:1px solid var(--line);border-radius:10px;padding:7px 11px;
+display:flex;flex-wrap:wrap;gap:2px 16px}
+.statebox span b{color:var(--fg);font-weight:500}
+.statebox .lbl{color:var(--jev);font-weight:600}
+.chart{position:relative;min-height:0}
+.chart svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.ax{fill:var(--dim);font:10.5px var(--mono)} .gl{stroke:var(--line);stroke-width:1}
+.dots{display:flex;gap:3px;align-items:center;height:22px;overflow:hidden}
+.dots i{flex:0 0 7px;height:16px;border-radius:3px;opacity:.9}
+.foot{display:flex;justify-content:space-between;font:11px var(--mono);color:var(--dim);margin-top:6px}
+.side{display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:12px;min-height:0}
+.pad{padding:14px 16px}
+.eyebrow{font:600 10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.big{display:flex;align-items:baseline;gap:12px}
+.big b{font:800 54px/1 Inter;letter-spacing:-.03em;transition:color .2s}
+.big span{font:500 26px var(--mono);color:var(--muted)}
+.bars{display:grid;grid-template-columns:36px 1fr 44px;gap:8px 10px;align-items:center;margin-top:12px;font:12px var(--mono);color:var(--muted)}
+.bar{height:9px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;transition:width .35s ease}
+.bars .v{text-align:right;color:var(--fg)}
+.money{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font:13px var(--mono);align-items:baseline}
+.money .k{color:var(--muted)} .money .v{text-align:right;font-weight:600}
+.money .net{font:800 28px var(--mono);letter-spacing:-.03em}
+.money hr{grid-column:1/-1;border:0;border-top:1px solid var(--line);margin:4px 0}
+.spark{height:62px;margin-top:10px;position:relative}
+.spark svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.feed{display:flex;flex-direction:column;min-height:0}
+.feed .eyebrow{padding:14px 16px 0}
+.tbl{flex:1;min-height:0;overflow:hidden;padding:0 10px 10px}
+table{width:100%;border-collapse:collapse;font:12px var(--mono)}
+th{color:var(--dim);font-weight:400;text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+td{padding:5px 6px;white-space:nowrap;border-bottom:1px solid rgba(26,34,45,.55)}
+td.r,th.r{text-align:right}
+tr.buy td{background:rgba(63,214,138,.045)} tr.sell td{background:rgba(255,93,108,.045)} tr.hold td{background:rgba(245,181,61,.05)}
+tr.fresh td{animation:fresh .8s ease-out}
+@keyframes fresh{from{background:rgba(139,123,255,.28)}}
+.g{color:var(--good)} .r{color:var(--bad)} .a{color:var(--late)} .d{color:var(--dim)}
+body.clean .moneycard,body.clean .pnl{display:none!important}
+.act-trade{color:var(--jev);font-weight:700} .act-hold{color:var(--dim)}
+.brainline{margin-top:12px;padding:9px 11px;border-radius:10px;border:1px solid rgba(224,122,85,.4);background:rgba(224,122,85,.08);font:12px/1.45 var(--mono);color:var(--muted)}
+.brainline b{color:#f0a283}
+.wait{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);font:13px var(--mono)}
+@media (max-width:1050px){.app{height:auto}.grid{grid-template-columns:1fr}.chart{min-height:300px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><em>Jev</em> Loop</div>
+    <div class="stats" id="stats"></div>
+    <div class="spacer"></div>
+    <div class="pill" id="runPill"><span class="live"></span><span id="runText">paper mode</span></div>
+    <div class="pill" id="mkt">—</div>
+    <div class="pill model" id="model">typesafe-ai/jev</div>
+    <div class="pill" id="uptime">00:00:00</div>
+  </header>
+
+  <div class="grid">
+    <div class="card main">
+      <div class="pxrow">
+        <div>
+          <div class="price" id="price">—</div>
+          <div class="sub" id="sub"></div>
+        </div>
+        <div class="action"><div class="verb" id="verb">Waiting</div><div class="meta" id="verbMeta">first block…</div></div>
+      </div>
+      <div class="statebox" id="statebox"><span class="lbl">what Jev saw</span></div>
+      <div class="chart" id="chart"><div class="wait">connecting to Hyperliquid…</div></div>
+      <div>
+        <div class="dots" id="dots"></div>
+        <div class="foot"><span>one dot per decision · <span class="g">buy</span> · <span class="r">sell</span> · <span class="a">late</span> · ◆ = trade filled</span><span id="blockNote"></span></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card pad">
+        <div class="eyebrow">Jev's latest call</div>
+        <div class="big"><b id="bigSide">—</b><span id="bigConf"></span></div>
+        <div class="brainline" id="brainLine" style="display:none"></div>
+        <div class="bars">
+          <span>buy</span><div class="bar"><i id="barBuy" style="width:0;background:var(--good)"></i></div><span class="v" id="pBuy">–</span>
+          <span>sell</span><div class="bar"><i id="barSell" style="width:0;background:var(--bad)"></i></div><span class="v" id="pSell">–</span>
+        </div>
+      </div>
+      <div class="card pad moneycard">
+        <div class="eyebrow" id="moneyTitle">Paper account · $1,000 position</div>
+        <div class="money">
+          <span class="k" id="balLabel">Paper balance</span><span class="v net" id="mBal">$1,000.00</span>
+          <hr>
+          <span class="k">Before fees</span><span class="v" id="mGross">–</span>
+          <span class="k">Fees paid <span class="d" id="mTrades"></span></span><span class="v" id="mFees">–</span>
+          <hr>
+          <span class="k">After fees</span><span class="v" id="mNet">–</span>
+          <span class="k">Jev calls → trades</span><span class="v" id="mRatio">–</span>
+          <span class="k">Direction right</span><span class="v" id="mHit">–</span>
+        </div>
+        <div class="spark" id="spark"></div>
+      </div>
+      <div class="card feed">
+        <div class="eyebrow">Feed · every Jev call</div>
+        <div class="tbl"><table><thead><tr><th>#</th><th>call</th><th>conf</th><th class="r">ms</th><th class="r">action</th></tr></thead><tbody id="feed"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const WINDOW_S = 60;
+let S = null, ticks = [], ws = null, wsCoin = null, lastPx = null, lastSpr = "–", seenBlocks = new Set();
+
+const pad2 = (n) => String(n).padStart(2, "0");
+function fmtPx(p) { const d = p >= 1000 ? 1 : p >= 10 ? 3 : 5; return p.toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d}); }
+const usd = (v) => (v >= 0 ? "+$" : "−$") + Math.abs(v).toFixed(2);
+function colorFor(d) { return d.status === "ok" ? (d.side === "buy" ? "var(--good)" : "var(--bad)") : "var(--late)"; }
+function niceTicks(lo, hi, k) {
+  const span = hi - lo || 1; let step = Math.pow(10, Math.floor(Math.log10(span / k)));
+  for (const m of [1, 2, 5, 10]) { if (span / (step * m) <= k) { step *= m; break; } }
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out;
+}
+
+// ---- live price: straight from Hyperliquid, ~8 updates a second -------------------------------
+function onQuote(bp, ap, bs, as) {
+  const t = Date.now() / 1000;
+  const mid = (bs * ap + as * bp) / (bs + as);  // microprice: the size-weighted fair price, moves on every book change
+  ticks.push([t, mid, bp, ap]); if (ticks.length > 6000) ticks = ticks.slice(-4000);
+  const el = $("price");
+  if (lastPx !== null && Math.abs(mid - lastPx) > mid * 1e-7) { el.className = "price " + (mid > lastPx ? "up" : "down"); clearTimeout(el._t); el._t = setTimeout(() => el.className = "price", 250); }
+  lastPx = mid; el.textContent = fmtPx(mid);
+  lastSpr = (1e4 * (ap - bp) / mid).toFixed(2) + " bps";
+  if ($("spr")) $("spr").textContent = lastSpr;
+}
+
+// live price straight from the exchange the bot trades on: Hyperliquid (paper loop) or Bybit (24/7 bot)
+function connect(coin) {
+  const venue = S.venue || "hyperliquid", key = venue + ":" + coin;
+  if (wsCoin === key && ws && ws.readyState <= 1) return;
+  wsCoin = key;
+  try { ws && ws.close(); } catch (e) {}
+  if (venue === "bybit") {
+    ws = new WebSocket("wss://stream.bybit.com/v5/public/linear");
+    ws.onopen = () => {
+      ws.send(JSON.stringify({op: "subscribe", args: [`orderbook.1.${S.symbol}`]}));
+      clearInterval(ws._ping); ws._ping = setInterval(() => ws.readyState === 1 && ws.send(JSON.stringify({op: "ping"})), 18000);
+    };
+    ws.onmessage = (ev) => {
+      const m = JSON.parse(ev.data), d = m.data;
+      if (!m.topic || !m.topic.startsWith("orderbook.1.") || !d || !d.b?.length || !d.a?.length) return;
+      onQuote(+d.b[0][0], +d.a[0][0], +d.b[0][1], +d.a[0][1]);
+    };
+  } else {
+    ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
+    ws.onopen = () => ws.send(JSON.stringify({method: "subscribe", subscription: {type: "bbo", coin}}));
+    ws.onmessage = (ev) => {
+      const m = JSON.parse(ev.data);
+      if (m.channel !== "bbo" || !m.data.bbo || m.data.bbo.includes(null)) return;
+      const [b, a] = m.data.bbo;
+      onQuote(+b.px, +a.px, +b.sz, +a.sz);
+    };
+  }
+  ws.onclose = () => setTimeout(() => connect(coin), 1500);
+}
+
+async function poll() {
+  try {
+    const r = await fetch("/results/loop.json?_=" + Date.now(), {cache: "no-store"});
+    if (!r.ok) return;
+    const first = !S; S = await r.json();
+    if (first || !ticks.length) ticks = S.ticks.concat(ticks.filter((t) => t[0] > (S.ticks.at(-1)?.[0] || 0)));
+    connect(S.coin);
+    renderData();
+  } catch (e) {}
+}
+
+const CLEAN = new URLSearchParams(location.search).has("clean");
+if (CLEAN) document.body.classList.add("clean");
+
+const answered = () => S.decisions.filter((d) => d.status === "ok" || d.status === "late");
+
+function renderData() {
+  const c = S.counts, j = S.book;
+  const up = Math.floor(((S.status === "done" ? S.updated : Date.now() / 1000) - S.started));
+  $("uptime").textContent = `uptime ${pad2(Math.floor(up / 3600))}:${pad2(Math.floor(up / 60) % 60)}:${pad2(up % 60)}`;
+  $("mkt").textContent = S.venue_label || `${S.coin}-PERP · Hyperliquid`;
+  $("model").textContent = S.model;
+  $("runPill").className = "pill" + (S.status === "done" ? " done" : "");
+  $("runText").textContent = S.status === "done" ? "run complete" : (S.mode_label || "paper mode");
+  $("stats").innerHTML = `<span>calls <b>${S.blocks.toLocaleString()}</b></span><span>last <b>${S.last_ms ?? "–"} ms</b></span>` +
+    `<span>avg <b>${S.avg_ms ?? "–"} ms</b></span><span>pace <b>${S.rate_per_s.toFixed(1)}/s</b></span><span>trades <b>${j.trades}</b></span>` +
+    `<span>late <b>${c.late}</b></span><span>throttled <b>${c.throttled}</b></span>`;
+  $("blockNote").textContent = `your strategy: ${S.strategy_note} · ${S.execution === "maker" ? "limit orders" : "market orders"}`;
+
+  const d = answered().at(-1), fill = S.fills.at(-1), nowS = Date.now() / 1000;
+  if (fill && nowS - fill.t < 3) {
+    $("verb").textContent = fill.side === "buy" ? "Bought" : "Sold"; $("verb").style.color = fill.side === "buy" ? "var(--good)" : "var(--bad)";
+    $("verbMeta").textContent = `${fill.kind} fill @ ${fmtPx(fill.px)}${fill.wait_s ? ` · rested ${fill.wait_s}s` : ""}`;
+  } else if (d && d.side) {
+    $("verb").textContent = d.side === "buy" ? "BUY" : "SELL"; $("verb").style.color = d.side === "buy" ? "var(--good)" : "var(--bad)";
+    $("verbMeta").textContent = `Jev · ${Math.round(100 * d.conf)}% · ${d.ms} ms`;
+  }
+  if (d) {
+    const last = S.decisions.slice().reverse().find((x) => x.side);
+    if (last) {
+      const pb = last.side === "buy" ? last.conf : 1 - last.conf;
+      $("bigSide").textContent = last.side.toUpperCase(); $("bigSide").style.color = last.side === "buy" ? "var(--good)" : "var(--bad)";
+      $("bigConf").textContent = Math.round(100 * last.conf) + "%";
+      $("barBuy").style.width = (100 * pb) + "%"; $("barSell").style.width = (100 * (1 - pb)) + "%";
+      $("pBuy").textContent = Math.round(100 * pb) + "%"; $("pSell").textContent = Math.round(100 * (1 - pb)) + "%";
+    }
+    const st = d.state || {};
+    const lab = {spread_bps: "spread", microprice_vs_mid_bps: "micro", top_of_book_imbalance: "imb", depth5_imbalance: "depth5",
+      aggressor_buy_share_5s: "agg buy 5s", aggressor_buy_share_30s: "agg buy 30s", trades_last_5s: "trades/5s",
+      return_5s_bps: "ret 5s", return_30s_bps: "ret 30s", tick_volatility_60s_bps: "vol 60s"};
+    $("statebox").innerHTML = `<span class="lbl">what Jev saw · ${Object.keys(st).length} fields</span>` +
+      Object.entries(lab).filter(([k]) => k in st).map(([k, l]) => `<span>${l} <b>${st[k]}</b></span>`).join("");
+  }
+  const pos = j.pos > 0 ? `<b class="g">LONG $1,000</b>` : j.pos < 0 ? `<b class="r">SHORT $1,000</b>` : `<b>FLAT</b>`;
+  const working = S.order ? `<span>limit ${(S.order.buying ?? S.order.target > 0) ? "buy" : "sell"} <b>${fmtPx(S.order.px)}</b> working</span>` : "";
+  $("sub").innerHTML = `<span>${pos}</span>${working}<span class="pnl">balance <b class="${j.net > 0 ? "g" : ""}">$${(1000 + j.net).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span><span>spread <b id="spr">${lastSpr}</b></span>`;
+
+  const acct = {demo: "Bybit demo account", live: "Bybit LIVE account"}[S.mode] || "Paper account";
+  $("balLabel").textContent = S.venue === "bybit" && S.mode !== "dry" ? "This session (from $1,000)" : "Paper balance";
+  $("moneyTitle").textContent = `${acct} · $${Math.round(S.notional || 1000).toLocaleString()} position · ${S.execution === "maker" ? `limit orders, ${S.maker_fee_bps.toFixed(1)} bps` : `market orders, ${S.taker_fee_bps.toFixed(1)} bps + spread`}`;
+  const tone = (v) => (v > 0 ? "g" : "");  // gains in green, everything else neutral
+  $("mBal").textContent = "$" + (1000 + j.net).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  $("mBal").className = "v net " + tone(j.net);
+  $("mGross").textContent = usd(j.gross); $("mGross").className = "v " + tone(j.gross);
+  $("mFees").textContent = "−$" + j.fees.toFixed(2); $("mTrades").textContent = `(${j.trades} trades)`;
+  $("mNet").textContent = usd(j.net); $("mNet").className = "v " + tone(j.net);
+  $("mRatio").textContent = `${S.blocks} → ${j.trades}`;
+  $("mHit").textContent = S.scored ? `${Math.round(100 * S.hits / S.scored)}% of ${S.scored}` : "–";
+  if (S.brain) {
+    const b = S.brain, ago = b.t ? Math.round((Date.now() / 1000 - b.t) / 60) + " min ago" : "thinking…";
+    $("brainLine").style.display = "block";
+    $("brainLine").innerHTML = `<b>Claude's bias: ${(b.bias || "—").toUpperCase()}</b>${b.confidence != null ? ` · ${Math.round(100 * b.confidence)}%` : ""} · ${ago}<br>${b.reason || ""}`;
+  }
+  renderSpark(); renderDots(); renderFeed();
+}
+
+function renderSpark() {
+  const el = $("spark"), j = S.book.equity;
+  if (j.length < 2) { el.innerHTML = ""; return; }
+  const W = el.clientWidth, H = el.clientHeight, all = j.flatMap((p) => [p[1], p[2]]).concat([0]);
+  const lo = Math.min(...all), hi = Math.max(...all), t0 = j[0][0], t1 = j.at(-1)[0];
+  const X = (t) => (t - t0) / Math.max(1, t1 - t0) * (W - 80), Y = (v) => 4 + (hi - v) / ((hi - lo) || 1) * (H - 8);
+  const line = (pts, i) => pts.map((p, k) => `${k ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[i]).toFixed(1)}`).join("");
+  const yb = Y(j.at(-1)[1]), ya = Y(j.at(-1)[2]), sep = Math.abs(yb - ya) < 12 ? (ya >= yb ? 6 : -6) : 0;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}"><line x1="0" x2="${W - 80}" y1="${Y(0)}" y2="${Y(0)}" stroke="#2e3949" stroke-dasharray="3 3"/>` +
+    `<path d="${line(j, 1)}" fill="none" stroke="var(--jev)" stroke-width="1.5" stroke-dasharray="4 3" opacity=".6"/>` +
+    `<path d="${line(j, 2)}" fill="none" stroke="var(--jev)" stroke-width="2.6"/>` +
+    `<text x="${W - 74}" y="${yb + 4 - sep}" style="fill:var(--muted);font:600 10.5px var(--mono)">before fees</text>` +
+    `<text x="${W - 74}" y="${ya + 4 + sep}" style="fill:var(--jev);font:600 10.5px var(--mono)">after fees</text></svg>`;
+}
+
+function renderDots() {
+  const el = $("dots"), n = Math.max(20, Math.floor(el.clientWidth / 10));
+  el.innerHTML = answered().slice(-n).map((d) => `<i style="background:${colorFor(d)}"></i>`).join("") +
+    (S.status === "running" ? `<i style="background:transparent;border:1.5px solid var(--jev);animation:pulse 1s infinite"></i>` : "");
+}
+
+function renderFeed() {
+  const rows = answered().slice(-22).reverse();
+  $("feed").innerHTML = rows.map((d, i) => {
+    const fresh = !seenBlocks.has(d.block); seenBlocks.add(d.block);
+    const cls = d.status !== "ok" ? "hold" : d.side;
+    const side = d.side ? `<b class="${d.status === "ok" ? (d.side === "buy" ? "g" : "r") : "a"}">${d.side.toUpperCase()}</b>` : `<span class="a">—</span>`;
+    const LABEL = {"hold · low conviction": "signal", "hold · limit order working": "order working", "hold · too soon to flip": "cooling down",
+                   "hold · already long": "in position", "hold · already short": "in position", "hold · late": "late"};
+    const act = LABEL[d.action] || d.action || d.status, trade = /^(limit|market)/.test(act);
+    return `<tr class="${cls} ${fresh && i === 0 && seenBlocks.size > 1 ? "fresh" : ""}"><td>${d.block.toLocaleString()}</td><td>${side}</td>` +
+      `<td>${d.conf != null ? d.conf.toFixed(2) : "–"}</td><td class="r">${d.ms ?? "–"}</td>` +
+      `<td class="r ${trade ? "act-trade" : d.status === "ok" ? "act-hold" : "a"}">${act}</td></tr>`;
+  }).join("");
+}
+
+function renderChart() {
+  requestAnimationFrame(renderChart);
+  const nowP = performance.now(); if (renderChart._t && nowP - renderChart._t < 40) return; renderChart._t = nowP;
+  if (!S || ticks.length < 2) return;
+  const el = $("chart"), W = el.clientWidth, H = el.clientHeight; if (W < 50 || H < 50) return;
+  const l = 4, r = 100, t = 12, b = 20;
+  const tMax = Date.now() / 1000;
+  const tMin = Math.max(tMax - WINDOW_S, ticks[0][0]);
+  const span = Math.max(5, tMax - tMin);
+  const vis = ticks.filter((p) => p[0] >= tMin - 1);
+  if (vis.length < 2) return;
+  const decs = answered().filter((d) => d.t >= tMin && d.micro);
+  const ys = vis.map((p) => p[1]).concat(decs.map((d) => d.micro), S.fills.filter((f) => f.t >= tMin).map((f) => f.px), S.order ? [S.order.px] : []);
+  let lo = Math.min(...ys), hi = Math.max(...ys); const pad = (hi - lo) * 0.18 || hi * 0.0001; lo -= pad; hi += pad;
+  const X = (tt) => Math.max(l, l + (tt - tMin) / span * (W - l - r)), Y = (v) => t + (hi - v) / (hi - lo) * (H - t - b);
+  const clampY = (v) => Math.min(H - b, Math.max(t, Y(v)));
+  let s = `<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="f" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#8b7bff" stop-opacity=".28"/><stop offset="1" stop-color="#8b7bff" stop-opacity="0"/></linearGradient></defs>`;
+  for (const v of niceTicks(lo, hi, 4)) s += `<line class="gl" x1="${l}" x2="${W - r}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${W - r + 8}" y="${Y(v) + 4}">${fmtPx(v)}</text>`;
+  for (let k = 0; k <= 3; k++) { const tt = tMin + k * span / 3; s += `<text class="ax" x="${X(tt)}" y="${H - 4}" text-anchor="${k === 0 ? "start" : k === 3 ? "end" : "middle"}">${new Date(tt * 1000).toLocaleTimeString([], {hour12: false})}</text>`; }
+  // the live bid-ask band, clipped to the chart
+  const top = vis.map((p) => `${X(p[0]).toFixed(1)},${clampY(p[3]).toFixed(1)}`), bot = vis.map((p) => `${X(p[0]).toFixed(1)},${clampY(p[2]).toFixed(1)}`).reverse();
+  s += `<polygon points="${top.join(" ")} ${X(tMax)},${clampY(vis.at(-1)[3])} ${X(tMax)},${clampY(vis.at(-1)[2])} ${bot.join(" ")}" fill="rgba(139,123,255,.10)"/>`;
+  // microprice: the price line
+  const line = vis.map((p) => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ") + ` ${X(tMax)},${Y(vis.at(-1)[1])}`;
+  s += `<polygon points="${X(vis[0][0])},${H - b} ${line} ${X(tMax)},${H - b}" fill="url(#f)"/><polyline points="${line}" fill="none" stroke="#e6ecf3" stroke-width="1.7" stroke-linejoin="round"/>`;
+  const nowS = Date.now() / 1000;
+  for (const d of decs) {
+    const cx = X(d.t), cy = Y(d.micro), age = nowS - d.t, col = colorFor(d);
+    if (age < 0.9) { const k = age / 0.9; s += `<circle cx="${cx}" cy="${cy}" r="${5 + 18 * k}" fill="none" stroke="${col}" stroke-width="2" opacity="${(1 - k).toFixed(2)}"/>`; }
+    s += `<circle cx="${cx}" cy="${cy}" r="4.6" fill="${col}" stroke="var(--bg)" stroke-width="1.5"/>`;
+  }
+  for (const f of S.fills.filter((f) => f.t >= tMin)) {
+    const cx = X(f.t), cy = Y(f.px), col = f.side === "buy" ? "var(--good)" : "var(--bad)", age = nowS - f.t;
+    if (age < 1.5) { const k = age / 1.5; s += `<circle cx="${cx}" cy="${cy}" r="${8 + 30 * k}" fill="none" stroke="${col}" stroke-width="2.5" opacity="${(1 - k).toFixed(2)}"/>`; }
+    s += `<rect x="${cx - 7}" y="${cy - 7}" width="14" height="14" transform="rotate(45 ${cx} ${cy})" fill="${col}" stroke="#fff" stroke-width="1.8"/>` +
+         `<text x="${cx}" y="${cy + (f.side === "buy" ? 24 : -15)}" text-anchor="middle" style="fill:${col};font:700 10.5px var(--mono);paint-order:stroke;stroke:var(--bg);stroke-width:4px">${f.side === "buy" ? "BOUGHT" : "SOLD"}</text>`;
+  }
+  if (S.order) {
+    const oy = Y(S.order.px), col = (S.order.buying ?? S.order.target > 0) ? "var(--good)" : "var(--bad)";
+    s += `<line x1="${X(S.order.t)}" x2="${W - r}" y1="${oy}" y2="${oy}" stroke="${col}" stroke-width="1.5" stroke-dasharray="6 4"/>` +
+         `<text x="${W - r - 6}" y="${oy - 6}" text-anchor="end" style="fill:${col};font:600 10.5px var(--mono)">limit ${(S.order.buying ?? S.order.target > 0) ? "buy" : "sell"} ${fmtPx(S.order.px)}</text>`;
+  }
+  const last = vis.at(-1)[1], ly = Y(last);
+  s += `<circle cx="${X(tMax)}" cy="${ly}" r="10" fill="#fff" opacity=".12"/><circle cx="${X(tMax)}" cy="${ly}" r="4" fill="#fff"/>` +
+       `<rect x="${W - r + 2}" y="${ly - 11}" width="${r - 4}" height="22" rx="6" fill="#fff"/><text x="${W - r + 9}" y="${ly + 4}" style="fill:#06080c;font:700 11.5px var(--mono)">${fmtPx(last)}</text>`;
+  el.innerHTML = s + "</svg>";
+}
+
+setInterval(poll, 200); poll(); requestAnimationFrame(renderChart);
+setInterval(() => S && renderData(), 1000);
+</script>
+</body>
+</html>

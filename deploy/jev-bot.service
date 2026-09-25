@@ -1,0 +1,19 @@
+# systemd service: keeps the Jev bot running 24/7 on the server and restarts it if it crashes.
+# Install: sudo cp deploy/jev-bot.service /etc/systemd/system/ && sudo systemctl daemon-reload
+#          sudo systemctl enable --now jev-bot
+# Logs:    journalctl -u jev-bot -f        Stop: sudo systemctl stop jev-bot
+[Unit]
+Description=Jev trading bot (Bybit)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/root/jev-starter
+ExecStart=/root/.local/bin/uv run python -m jevlab bot --minutes 0 --no-open
+Restart=on-failure
+RestartSec=15
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
