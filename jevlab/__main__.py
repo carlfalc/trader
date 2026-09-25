@@ -167,6 +167,12 @@ def main() -> None:
                     help="fxbot: allow buys only, sells only, or both")
     ap.add_argument("--max-loss", type=float, default=None, dest="max_loss",
                     help="fxbot: daily loss cap in account $ (0 = no limit; default MAX_DAILY_LOSS_USD or 50)")
+    ap.add_argument("--no-brain", action="store_true", dest="no_brain",
+                    help="fxbot: skip the Claude bias gate — trade on Jev + strategy alone")
+    ap.add_argument("--min-conf", type=float, default=None, dest="min_conf",
+                    help="fxbot: minimum Jev conviction to trade, 0-1 (default 0.85)")
+    ap.add_argument("--min-hold", type=float, default=None, dest="min_hold",
+                    help="fxbot: seconds to wait between entries (default 120)")
     ap.add_argument("--minutes", type=float, default=10.0, help="loop/bot: how long to run (0 = until stopped)")
     ap.add_argument("--pace", type=float, default=0.3, help="loop: fastest seconds between Jev calls")
     ap.add_argument("--late-ms", type=float, default=1500, help="loop: answers slower than this are ignored")
@@ -201,7 +207,8 @@ def main() -> None:
     elif a.command == "fxbot":
         from .fxbot import run_fxbot
         run_fxbot([s for s in a.symbols.split(",")], a.pace, a.minutes, a.port, not a.no_open,
-                  a.late_ms, a.brain_every, a.lots, a.direction, a.max_loss)
+                  a.late_ms, a.brain_every, a.lots, a.direction, a.max_loss,
+                  use_brain=not a.no_brain, min_conf=a.min_conf, min_hold=a.min_hold)
         if a.no_open and not a.minutes:
             return
     else:

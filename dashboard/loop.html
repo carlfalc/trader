@@ -286,6 +286,21 @@ function renderData() {
     $("brainLine").style.display = "block";
     $("brainLine").innerHTML = `<b>Claude's bias: ${(b.bias || "—").toUpperCase()}</b>${b.confidence != null ? ` · ${Math.round(100 * b.confidence)}%` : ""} · ${ago}<br>${b.reason || ""}`;
   }
+  if ((S.venue || "") === "metaapi") {  // real broker equity, not the $1,000 paper view
+    const cur = S.currency || "AUD";
+    const eq = S.equity != null ? S.equity : (1000 + j.net);
+    const fmtc = (v) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + " " + cur;
+    $("moneyTitle").textContent = `MetaApi ${S.mode === "live" ? "LIVE" : "demo"} account · ${S.notional} lots each · market orders`;
+    $("balLabel").textContent = "Equity";
+    $("mBal").textContent = eq.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " " + cur;
+    $("mBal").className = "v net " + (j.net > 0 ? "g" : "");
+    $("mGross").textContent = fmtc(j.net); $("mGross").className = "v " + (j.net > 0 ? "g" : j.net < 0 ? "r" : "");
+    $("mFees").textContent = "—"; $("mTrades").textContent = `(${j.trades} orders)`;
+    $("mNet").textContent = fmtc(j.net); $("mNet").className = "v " + (j.net > 0 ? "g" : j.net < 0 ? "r" : "");
+    $("mRatio").textContent = `${S.blocks} → ${j.trades}`;
+    const posTxt = j.pos > 0 ? `<b class="g">LONG ${Math.abs(j.qty)} lots</b>` : j.pos < 0 ? `<b class="r">SHORT ${Math.abs(j.qty)} lots</b>` : `<b>FLAT</b>`;
+    $("sub").innerHTML = `<span>${posTxt}</span><span class="pnl">equity <b>${eq.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} ${cur}</b></span><span>P&L <b class="${j.net>0?'g':j.net<0?'r':''}">${fmtc(j.net)}</b></span><span>spread <b id="spr">${lastSpr}</b></span>`;
+  }
   renderSpark(); renderDots(); renderFeed();
 }
 

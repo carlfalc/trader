@@ -91,7 +91,7 @@ class SymbolEngine:
         self.name = display_name(symbol)
         self.direction = direction  # "both" | "buy" (longs only) | "sell" (shorts only)
         self.jev, self.late_ms, self.g = jev, late_ms, gstate
-        self.market = MetaApiMarket(client, symbol, poll_s=float(os.getenv("METAAPI_POLL_S", "1.0")))
+        self.market = MetaApiMarket(client, symbol, poll_s=float(os.getenv("METAAPI_POLL_S", "0.5")))
         self.brain = Brain(symbol, brain_every, summary_fn=metaapi_summary_fn(client))
         self.lock = threading.Lock()
         self.decisions: list[dict] = []
@@ -106,7 +106,8 @@ class SymbolEngine:
 
     def start(self, stop: threading.Event) -> None:
         self.market.start()
-        self.brain.start(stop)
+        if self.g.get("use_brain", True):
+            self.brain.start(stop)
 
     def pos_sign(self) -> int:
         return 1 if self.pos_lots > 1e-9 else -1 if self.pos_lots < -1e-9 else 0
@@ -123,14 +124,21 @@ class SymbolEngine:
             return f"hold · halted ({self.g['halted']})"
         if not self.market.market_open:
             return "hold · market closed"
-        bias = self.brain.current().get("bias")
-        if bias is None:
-            return "hold · waiting for Claude's first read"
+        if self.g.get("use_brain", True):
+            b = self.brain.current()
+            bias = b.get("bias")
+            if bias is None and not b.get("degraded"):
+                return "hold · waiting for the brain's first read"
+            # degraded (brain unreachable) → bias None → trade on trend + Jev, no gate
+        else:
+            bias = None  # brain off: trade on Jev + strategy alone
         pos = self.pos_sign()
+        market_view = {**rec["state"]}
+        if bias is not None:
+            market_view["claude_bias"] = bias
         try:
             choice = strategy.decide({"side": rec["side"], "conf": rec["conf"]},
-                                     {**rec["state"], "claude_bias": bias}, pos,
-                                     time.time() - self.last_trade_t)
+                                     market_view, pos, time.time() - self.last_trade_t)
         except Exception as exc:
             return f"hold · strategy error: {str(exc)[:60]}"
         if choice not in ("buy", "sell", "flat"):
@@ -222,11 +230,18 @@ class SymbolEngine:
 
 def run_fxbot(symbols: list[str], pace_s: float, minutes: float, port: int, open_browser: bool,
               late_ms: float = 1500, brain_every: float = 10.0,
-              lots: float | None = None, direction: str = "both", max_loss: float | None = None) -> None:
+              lots: float | None = None, direction: str = "both", max_loss: float | None = None,
+              use_brain: bool = True, min_conf: float | None = None, min_hold: float | None = None) -> None:
     symbols = [s.strip().upper() for s in symbols if s.strip()]
     if not symbols:
         raise SystemExit("  no symbols given")
     direction = direction if direction in ("both", "buy", "sell") else "both"
+    if min_conf is not None:
+        strategy.SETTINGS["min_conf"] = float(min_conf)
+    if min_hold is not None:
+        strategy.SETTINGS["min_hold"] = float(min_hold)
+    strategy.DESCRIPTION = (f"trend-following · ≥{strategy.SETTINGS['min_conf']:.0%} conviction · "
+                            f"with-trend only · ≥{strategy.SETTINGS['min_hold']:g}s between entries")
     try:
         mode = metaapi_mode()
     except MetaApiError as exc:
@@ -240,8 +255,11 @@ def run_fxbot(symbols: list[str], pace_s: float, minutes: float, port: int, open
     dir_label = {"both": "buys & sells", "buy": "buys only", "sell": "sells only"}[direction]
     loss_label = f"daily loss limit ${max_loss:,.0f}" if loss_on else "no daily loss limit"
     mode_label = {"demo": "MetaApi DEMO · fake money", "live": "MetaApi LIVE · REAL MONEY"}[mode]
-    header("THE JEV FX BOT", f"{names} · {mode_label} · {dir_label} · Claude sets each bias every "
-           f"{brain_every:g} min · strategy: {strategy.DESCRIPTION} · {max_lots:g} lots each · {loss_label}")
+    brain_phrase = f"Claude sets each bias every {brain_every:g} min" if use_brain else "brain OFF (Jev + strategy only)"
+    header("THE JEV FX BOT", f"{names} · {mode_label} · {dir_label} · {brain_phrase} · "
+           f"strategy: {strategy.DESCRIPTION} · {max_lots:g} lots each · {loss_label}")
+    if not use_brain:
+        console.print("  [#f5b53d]Brain OFF: no Claude direction gate — Jev's calls trade straight through the strategy.[/]")
     if max_lots >= 1 and loss_on:
         console.print(f"  [#f5b53d]Note: {max_lots:g} lots is a large size — one small move can exceed the "
                       f"${max_loss:,.0f} daily-loss limit and halt the bot. Raise it (or set 0 to turn it off) to suit.[/]")
@@ -268,7 +286,7 @@ def run_fxbot(symbols: list[str], pace_s: float, minutes: float, port: int, open
     out = RESULTS / "loop.json"
     log = open(RESULTS / "fxbot_log.jsonl", "a")
     stop = threading.Event()
-    g = {"halted": None, "pace": pace_s, "interval": pace_s, "streak": 0, "log": log}
+    g = {"halted": None, "pace": pace_s, "interval": pace_s, "streak": 0, "log": log, "use_brain": use_brain}
     engines = [SymbolEngine(client, s, max_lots, brain_every, jev, late_ms, g, direction) for s in symbols]
     by_symbol = {e.symbol: e for e in engines}
     for e in engines:

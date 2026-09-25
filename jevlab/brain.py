@@ -73,38 +73,68 @@ Reply with ONLY a JSON object: {{"bias": "long" | "short" | "flat", "confidence"
 
 
 class Brain:
+    # Candidate model slugs, tried in order until one works. The configured CLAUDE_MODEL
+    # goes first; the rest are current Vercel AI Gateway Anthropic slugs as fallbacks, so
+    # the brain self-heals if the configured name is wrong or retired.
+    FALLBACK_MODELS = [
+        "anthropic/claude-sonnet-4.5", "anthropic/claude-sonnet-4",
+        "anthropic/claude-opus-5.5", "anthropic/claude-3.7-sonnet", "anthropic/claude-3.5-sonnet",
+    ]
+
     def __init__(self, symbol: str, every_min: float, summary_fn=None):
         self.key = os.getenv("AI_GATEWAY_API_KEY", "").strip()
-        self.model = os.getenv("CLAUDE_MODEL", "anthropic/claude-sonnet-5").strip()
+        configured = os.getenv("CLAUDE_MODEL", "anthropic/claude-sonnet-4.5").strip()
+        self.models = [configured] + [m for m in self.FALLBACK_MODELS if m != configured]
+        self.model = configured
         self.symbol, self.every = symbol, every_min
         # summary_fn(symbol) -> dict of plain numbers. Defaults to the Bybit crypto summary;
         # the FX/CFD bot passes a MetaApi-based one instead.
         self.summary_fn = summary_fn or market_summary
-        self.state = {"bias": None, "confidence": None, "reason": "waiting for Claude's first read", "t": None,
-                      "model": self.model, "ms": None, "error": None}
+        self.state = {"bias": None, "confidence": None, "reason": "waiting for the brain's first read",
+                      "t": None, "model": self.model, "ms": None, "error": None, "degraded": False}
         self.lock = threading.Lock()
+
+    def _ask_model(self, model: str, content: str) -> dict:
+        body = {"model": model, "temperature": 0, "max_tokens": 200,
+                "messages": [{"role": "user", "content": content}]}
+        r = requests.post(CHAT_URL, headers={"Authorization": f"Bearer {self.key}"}, json=body, timeout=60)
+        if r.status_code != 200:
+            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:160]}")
+        text = r.json()["choices"][0]["message"]["content"]
+        return json.loads(re.search(r"\{.*\}", text, re.S).group(0))
 
     def think(self) -> None:
         t0 = time.time()
         try:
             summary = self.summary_fn(self.symbol)
             news = "\n".join(f"- {h}" for h in headlines()) or "- (none)"
-            body = {"model": self.model, "temperature": 0, "max_tokens": 200, "messages": [
-                {"role": "user", "content": PROMPT.format(minutes=self.every, summary=json.dumps(summary, indent=1), news=news)}]}
-            r = requests.post(CHAT_URL, headers={"Authorization": f"Bearer {self.key}"}, json=body, timeout=60)
-            if r.status_code != 200:
-                raise RuntimeError(f"HTTP {r.status_code}: {r.text[:160]}")
-            text = r.json()["choices"][0]["message"]["content"]
-            out = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
+            content = PROMPT.format(minutes=self.every, summary=json.dumps(summary, indent=1), news=news)
+            out, used, last_err = None, self.model, None
+            for m in [self.model] + [x for x in self.models if x != self.model]:  # working model first
+                try:
+                    out = self._ask_model(m, content)
+                    used = m
+                    break
+                except Exception as exc:
+                    last_err = str(exc)[:160]
+            if out is None:
+                raise RuntimeError(f"no Claude model available (last: {last_err})")
+            self.model = used  # cache whichever worked
             bias = out.get("bias") if out.get("bias") in ("long", "short", "flat") else "flat"
             with self.lock:
-                self.state.update(bias=bias, confidence=float(out.get("confidence") or 0), reason=str(out.get("reason", ""))[:160],
-                                  t=time.time(), ms=round((time.time() - t0) * 1000), error=None, summary=summary)
-        except Exception as exc:  # keep the last bias; if there's never been one, the bot stays flat
+                self.state.update(bias=bias, confidence=float(out.get("confidence") or 0),
+                                  reason=str(out.get("reason", ""))[:160], t=time.time(),
+                                  ms=round((time.time() - t0) * 1000), error=None, degraded=False,
+                                  model=used, summary=summary)
+        except Exception as exc:
+            # Don't force the bot flat when the brain is unreachable — mark it degraded so the
+            # strategy trades on trend + Jev alone (no directional gate) instead of stalling.
             with self.lock:
                 self.state["error"] = str(exc)[:160]
-                if self.state["bias"] is None:
-                    self.state.update(bias="flat", reason="Claude unavailable, staying out", t=time.time())
+                self.state["t"] = time.time()
+                if self.state["bias"] in (None, "flat") and not self.state.get("confidence"):
+                    self.state.update(bias=None, degraded=True,
+                                      reason="brain unavailable — trading on trend + Jev only")
 
     def start(self, stop: threading.Event) -> None:
         def run():

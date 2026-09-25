@@ -174,15 +174,20 @@ class MetaApiClient:
             raise MetaApiError(f"close failed: {data.get('message') if isinstance(data, dict) else data}")
 
     def flatten(self, symbol: str) -> int:
-        """Close every open position on this symbol. Returns how many were closed."""
-        _, ids = self.net_position(symbol)
+        """Close every open position on this symbol, retrying until flat (handles hedging
+        accounts where positions can stack). Returns how many were closed."""
         closed = 0
-        for pid in ids:
-            try:
-                self.close_position(pid)
-                closed += 1
-            except MetaApiError:
-                pass
+        for _ in range(3):
+            vol, ids = self.net_position(symbol)
+            if abs(vol) < 1e-9 and not ids:
+                break
+            for pid in ids:
+                try:
+                    self.close_position(pid)
+                    closed += 1
+                except MetaApiError:
+                    pass
+            time.sleep(0.3)
         return closed
 
 
