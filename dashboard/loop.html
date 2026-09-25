@@ -77,6 +77,14 @@ body.clean .moneycard,body.clean .pnl{display:none!important}
 .act-trade{color:var(--jev);font-weight:700} .act-hold{color:var(--dim)}
 .brainline{margin-top:12px;padding:9px 11px;border-radius:10px;border:1px solid rgba(224,122,85,.4);background:rgba(224,122,85,.08);font:12px/1.45 var(--mono);color:var(--muted)}
 .brainline b{color:#f0a283}
+.mstrip{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 -4px}
+.mchip{display:flex;align-items:center;gap:8px;padding:6px 11px;border-radius:10px;border:1px solid var(--line2);background:rgba(12,16,22,.7);font:12px var(--mono);color:var(--muted)}
+.mchip.active{border-color:rgba(139,123,255,.55);background:rgba(139,123,255,.12)}
+.mchip b{color:var(--fg);font-weight:600}
+.mchip .bdot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.mchip .bdot.long{background:var(--good)} .mchip .bdot.short{background:var(--bad)} .mchip .bdot.flat{background:var(--late)}
+.mchip .pnl-pos{color:var(--good)} .mchip .pnl-neg{color:var(--bad)}
+.mchip .closed{color:var(--late)}
 .wait{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);font:13px var(--mono)}
 @media (max-width:1050px){.app{height:auto}.grid{grid-template-columns:1fr}.chart{min-height:300px}}
 </style>
@@ -92,6 +100,8 @@ body.clean .moneycard,body.clean .pnl{display:none!important}
     <div class="pill model" id="model">typesafe-ai/jev</div>
     <div class="pill" id="uptime">00:00:00</div>
   </header>
+
+  <div class="mstrip" id="mstrip"></div>
 
   <div class="grid">
     <div class="card main">
@@ -172,6 +182,7 @@ function onQuote(bp, ap, bs, as) {
 // live price straight from the exchange the bot trades on: Hyperliquid (paper loop) or Bybit (24/7 bot)
 function connect(coin) {
   const venue = S.venue || "hyperliquid", key = venue + ":" + coin;
+  if (venue === "metaapi") return;  // no public browser feed — the backend supplies ticks in loop.json
   if (wsCoin === key && ws && ws.readyState <= 1) return;
   wsCoin = key;
   try { ws && ws.close(); } catch (e) {}
@@ -204,7 +215,8 @@ async function poll() {
     const r = await fetch("/results/loop.json?_=" + Date.now(), {cache: "no-store"});
     if (!r.ok) return;
     const first = !S; S = await r.json();
-    if (first || !ticks.length) ticks = S.ticks.concat(ticks.filter((t) => t[0] > (S.ticks.at(-1)?.[0] || 0)));
+    if ((S.venue || "") === "metaapi") ticks = S.ticks || [];  // backend-supplied feed, refreshed each poll
+    else if (first || !ticks.length) ticks = S.ticks.concat(ticks.filter((t) => t[0] > (S.ticks.at(-1)?.[0] || 0)));
     connect(S.coin);
     renderData();
   } catch (e) {}
@@ -217,6 +229,8 @@ const answered = () => S.decisions.filter((d) => d.status === "ok" || d.status =
 
 function renderData() {
   const c = S.counts, j = S.book;
+  if ((S.venue || "") === "metaapi" && ticks.length) { const m = ticks.at(-1)[1]; lastPx = m; $("price").textContent = fmtPx(m); }
+  renderStrip();
   const up = Math.floor(((S.status === "done" ? S.updated : Date.now() / 1000) - S.started));
   $("uptime").textContent = `uptime ${pad2(Math.floor(up / 3600))}:${pad2(Math.floor(up / 60) % 60)}:${pad2(up % 60)}`;
   $("mkt").textContent = S.venue_label || `${S.coin}-PERP · Hyperliquid`;
@@ -288,6 +302,24 @@ function renderSpark() {
     `<path d="${line(j, 2)}" fill="none" stroke="var(--jev)" stroke-width="2.6"/>` +
     `<text x="${W - 74}" y="${yb + 4 - sep}" style="fill:var(--muted);font:600 10.5px var(--mono)">before fees</text>` +
     `<text x="${W - 74}" y="${ya + 4 + sep}" style="fill:var(--jev);font:600 10.5px var(--mono)">after fees</text></svg>`;
+}
+
+function renderStrip() {
+  const el = $("mstrip");
+  if (!el) return;
+  const items = S.instruments;
+  if (!Array.isArray(items) || !items.length) { el.innerHTML = ""; return; }
+  el.innerHTML = items.map((it) => {
+    const bias = it.bias || "flat";
+    const lots = Math.abs(+it.lots || 0).toFixed(2);
+    const posTxt = it.pos > 0 ? `LONG ${lots}` : it.pos < 0 ? `SHORT ${lots}` : "flat";
+    const pnl = +it.unrealized || 0, pnlCls = pnl > 0 ? "pnl-pos" : pnl < 0 ? "pnl-neg" : "";
+    const active = it.symbol === S.symbol ? " active" : "";
+    const closed = it.market_open === false ? ` <span class="closed">· closed</span>` : "";
+    return `<div class="mchip${active}"><span class="bdot ${bias}"></span><b>${it.name}</b>` +
+      `<span>${bias.toUpperCase()}</span><span>${posTxt}</span>` +
+      `<span class="${pnlCls}">${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}</span>${closed}</div>`;
+  }).join("");
 }
 
 function renderDots() {

@@ -73,10 +73,13 @@ Reply with ONLY a JSON object: {{"bias": "long" | "short" | "flat", "confidence"
 
 
 class Brain:
-    def __init__(self, symbol: str, every_min: float):
+    def __init__(self, symbol: str, every_min: float, summary_fn=None):
         self.key = os.getenv("AI_GATEWAY_API_KEY", "").strip()
         self.model = os.getenv("CLAUDE_MODEL", "anthropic/claude-sonnet-5").strip()
         self.symbol, self.every = symbol, every_min
+        # summary_fn(symbol) -> dict of plain numbers. Defaults to the Bybit crypto summary;
+        # the FX/CFD bot passes a MetaApi-based one instead.
+        self.summary_fn = summary_fn or market_summary
         self.state = {"bias": None, "confidence": None, "reason": "waiting for Claude's first read", "t": None,
                       "model": self.model, "ms": None, "error": None}
         self.lock = threading.Lock()
@@ -84,7 +87,7 @@ class Brain:
     def think(self) -> None:
         t0 = time.time()
         try:
-            summary = market_summary(self.symbol)
+            summary = self.summary_fn(self.symbol)
             news = "\n".join(f"- {h}" for h in headlines()) or "- (none)"
             body = {"model": self.model, "temperature": 0, "max_tokens": 200, "messages": [
                 {"role": "user", "content": PROMPT.format(minutes=self.every, summary=json.dumps(summary, indent=1), news=news)}]}

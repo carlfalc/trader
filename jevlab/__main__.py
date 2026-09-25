@@ -109,10 +109,64 @@ def check_bybit() -> None:
         console.print("     [dim](couldn't read the key's permissions here, so double-check them on Bybit: no withdrawals)[/]")
 
 
+def check_metaapi(symbols: list[str]) -> None:
+    """Connection test for the MetaApi (FX/indices/commodities) hybrid."""
+    import time as _t
+
+    from .core import console
+    from .instruments import display_name
+    from .judges import JevJudge, JudgeError
+
+    console.print("[bold #8b7bff]jev-starter · MetaApi hybrid[/] [dim]· FX / indices / commodities[/]")
+    console.print("  [bold]1. MetaApi account[/]")
+    try:
+        from .metaapi import MetaApiClient, MetaApiError
+        client = MetaApiClient()
+        info = client.account_information()
+    except Exception as exc:
+        console.print(f"     [#ff5d6c]not connected[/]: {str(exc)[:180]}")
+        console.print("     [dim]Set METAAPI_TOKEN, METAAPI_ACCOUNT_ID, METAAPI_REGION in .env, and make sure the "
+                      "account is deployed with credits.[/]")
+        return
+    console.print(f"     connected · [bold]{client.mode.upper()}[/] · equity "
+                  f"{float(info.get('equity') or info.get('balance') or 0):,.2f} {info.get('currency', 'USD')} "
+                  f"· leverage {info.get('leverage', '?')}  [#3fd68a]ok[/]")
+    if client.mode == "live":
+        console.print("     [#ff5d6c]LIVE account — real money. Keep to demo until you've proven it.[/]")
+
+    console.print("  [bold]2. Live quotes[/]")
+    got_state = None
+    for s in [x.strip().upper() for x in symbols if x.strip()]:
+        p = client.current_price(s)
+        if p:
+            mid = (p["bid"] + p["ask"]) / 2
+            console.print(f"     {display_name(s):<14} {mid:,.3f}  (via {p['broker_symbol']})  [#3fd68a]ok[/]")
+        else:
+            console.print(f"     {display_name(s):<14} [#f5b53d]no quote[/] (market closed, or symbol not offered by this broker)")
+
+    console.print("  [bold]3. Jev[/]")
+    try:
+        jev = JevJudge()
+        q = {"side": {"type": "choice", "instructions": "buy or sell for the next few seconds?",
+                      "criteria": {"buy": None, "sell": None}}}
+        ans, meta = jev.ask({"return_5s_bps": 0.8, "spread_bps": 1.2}, q, timeout=15, retries=2)
+        side = ans["side"]["choice"]
+        console.print(f"     Jev says [bold]{side.upper()} {ans['side']['probs'][side]:.0%}[/] in {meta['latency_ms']} ms  [#3fd68a]ok[/]")
+    except JudgeError as exc:
+        console.print(f"     [#f5b53d]Jev not ready[/]: {str(exc)[:140]}")
+    console.print("\n  [#3fd68a]Ready.[/] Next: [bold]uv run python -m jevlab fxbot[/]")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="jevlab")
-    ap.add_argument("command", choices=["check", "loop", "newsroom", "bot"])
+    ap.add_argument("command", choices=["check", "loop", "newsroom", "bot", "fxcheck", "fxbot"])
     ap.add_argument("--coin", default="HYPE", help="loop/bot: the coin to trade")
+    ap.add_argument("--symbols", default="XAUUSD,HK50", help="fxbot: comma list of GAINEDGE instruments")
+    ap.add_argument("--lots", type=float, default=None, help="fxbot: lots per instrument (default MAX_LOTS or 2)")
+    ap.add_argument("--direction", choices=["both", "buy", "sell"], default="both",
+                    help="fxbot: allow buys only, sells only, or both")
+    ap.add_argument("--max-loss", type=float, default=None, dest="max_loss",
+                    help="fxbot: daily loss cap in account $ (0 = no limit; default MAX_DAILY_LOSS_USD or 50)")
     ap.add_argument("--minutes", type=float, default=10.0, help="loop/bot: how long to run (0 = until stopped)")
     ap.add_argument("--pace", type=float, default=0.3, help="loop: fastest seconds between Jev calls")
     ap.add_argument("--late-ms", type=float, default=1500, help="loop: answers slower than this are ignored")
@@ -127,11 +181,14 @@ def main() -> None:
     a = ap.parse_args()
 
     from .core import console
-    if a.command != "bot":  # the bot prints its own banner, with its trading mode
+    if a.command in ("check", "loop", "newsroom"):  # the trading bots print their own banner + mode
         console.print("[bold #8b7bff]jev-starter[/] [dim]· paper trading on live Hyperliquid data · no real orders are ever placed[/]")
 
     if a.command == "check":
         check()
+        return
+    if a.command == "fxcheck":
+        check_metaapi(a.symbols.split(","))
         return
     if a.command == "loop":
         from .loop import run_loop
@@ -139,6 +196,12 @@ def main() -> None:
     elif a.command == "bot":
         from .bot import run_bot
         run_bot(a.coin.upper(), a.pace, a.minutes, a.port, not a.no_open, a.late_ms, a.maker_wait, a.brain_every, a.dry)
+        if a.no_open and not a.minutes:
+            return
+    elif a.command == "fxbot":
+        from .fxbot import run_fxbot
+        run_fxbot([s for s in a.symbols.split(",")], a.pace, a.minutes, a.port, not a.no_open,
+                  a.late_ms, a.brain_every, a.lots, a.direction, a.max_loss)
         if a.no_open and not a.minutes:
             return
     else:

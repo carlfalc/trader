@@ -55,3 +55,27 @@ Safety, always on:
 Real money needs `BYBIT_MODE=live` **and** the exact confirmation phrase in `JEV_LIVE_CONFIRM`. Set those yourself, after weeks of demo results.
 
 To run it 24/7, put it on an always-on server (a small Linux VPS) with `deploy/jev-bot.service`. The setup prompt walks through all of it. Not financial advice.
+
+## The FX / indices / commodities bot (Path 3): MetaApi hybrid
+
+`uv run python -m jevlab fxbot` runs the same Jev + Claude + `strategy.py` engine against your **GAINEDGE instruments** through a **MetaApi-linked MetaTrader 5 account** — Gold, Hang Seng, DAX, NAS100, FX majors, oil, etc. It is **multi-instrument**: each market runs independently (its own Claude bias, Jev calls and position) under one account-wide loss limit and kill switch.
+
+```bash
+uv run python -m jevlab fxcheck                        # test the MetaApi connection + live quotes
+uv run python -m jevlab fxbot                          # default: Gold + Hang Seng, 24/7
+uv run python -m jevlab fxbot --symbols XAUUSD,HK50,NAS100,GER40
+uv run python -m jevlab fxbot --lots 2 --direction buy --max-loss 0
+```
+
+Options:
+- `--symbols` — comma list of canonical GAINEDGE symbols (`XAUUSD, HK50, NAS100, GER40, NZDUSD, USDCAD, EURUSD, …`). The broker's own variant (`XAUUSD.i` etc.) is resolved automatically.
+- `--lots` — lots traded per instrument (default `MAX_LOTS`, which defaults to `2`).
+- `--direction` — `both` (default), `buy` (longs only) or `sell` (shorts only).
+- `--max-loss` — daily loss cap in account currency. `0` turns the daily-loss limit off (the STOP kill switch and per-instrument lot cap stay on).
+
+Setup (`.env`):
+- `METAAPI_TOKEN`, `METAAPI_ACCOUNT_ID` — from metaapi.cloud. Start with a **demo** MetaTrader 5 account. The account must be **deployed** (that's what uses MetaApi credits).
+- `METAAPI_REGION` — MetaApi data-centre (`london` default). This is a data-centre, not a market — the instruments decide the markets.
+- `METAAPI_ACCOUNT_TYPE` — `demo` (default) or `live`. Live also needs `JEV_LIVE_CONFIRM` set to the exact phrase, exactly like the crypto bot.
+
+Safety is the same model as the crypto bots: demo-first, per-instrument lot cap, account-wide daily-loss limit (or off), STOP kill switch, and flatten-on-exit. Orders are MetaApi market orders; P&L is read straight from the broker's live equity. The dashboard shows the first instrument in full plus a strip summarising every market. Not financial advice.
