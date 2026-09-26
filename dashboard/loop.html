@@ -13,7 +13,7 @@
 html,body{height:100%}
 body{margin:0;color:var(--fg);font:14px/1.45 Inter,-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;
 background:radial-gradient(1000px 520px at 90% -15%,rgba(139,123,255,.18),transparent 60%),radial-gradient(900px 500px at -10% 115%,rgba(63,214,138,.06),transparent 60%),var(--bg)}
-.app{height:100vh;min-height:680px;display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;padding:14px 18px 12px;max-width:1760px;margin:0 auto}
+.app{height:100vh;min-height:680px;display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:12px;padding:14px 18px 12px;max-width:1760px;margin:0 auto}
 header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .brand{font:800 23px/1 Inter;letter-spacing:-.025em}
 .brand em{font-style:normal;background:linear-gradient(95deg,var(--jev),#d6ccff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -77,7 +77,8 @@ body.clean .moneycard,body.clean .pnl{display:none!important}
 .act-trade{color:var(--jev);font-weight:700} .act-hold{color:var(--dim)}
 .brainline{margin-top:12px;padding:9px 11px;border-radius:10px;border:1px solid rgba(224,122,85,.4);background:rgba(224,122,85,.08);font:12px/1.45 var(--mono);color:var(--muted)}
 .brainline b{color:#f0a283}
-.mstrip{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 -4px}
+.mstrip{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0}
+.mstrip .mlabel{font:600 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-right:2px}
 .mchip{display:flex;align-items:center;gap:8px;padding:6px 11px;border-radius:10px;border:1px solid var(--line2);background:rgba(12,16,22,.7);font:12px var(--mono);color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s}
 .mchip:hover{border-color:var(--line);background:rgba(255,255,255,.04)}
 .mchip.active{border-color:rgba(139,123,255,.55);background:rgba(139,123,255,.12);cursor:default}
@@ -443,7 +444,8 @@ function renderStrip() {
   if (!el) return;
   const items = S.instruments;
   if (!Array.isArray(items) || !items.length) { el.innerHTML = ""; return; }
-  el.innerHTML = items.map((it) => {
+  const label = items.length > 1 ? `<span class="mlabel">markets · click to switch chart</span>` : "";
+  el.innerHTML = label + items.map((it) => {
     const bias = it.bias || "flat";
     const lots = Math.abs(+it.lots || 0).toFixed(2);
     const posTxt = it.pos > 0 ? `LONG ${lots}` : it.pos < 0 ? `SHORT ${lots}` : "flat";
