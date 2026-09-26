@@ -78,13 +78,31 @@ body.clean .moneycard,body.clean .pnl{display:none!important}
 .brainline{margin-top:12px;padding:9px 11px;border-radius:10px;border:1px solid rgba(224,122,85,.4);background:rgba(224,122,85,.08);font:12px/1.45 var(--mono);color:var(--muted)}
 .brainline b{color:#f0a283}
 .mstrip{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 -4px}
-.mchip{display:flex;align-items:center;gap:8px;padding:6px 11px;border-radius:10px;border:1px solid var(--line2);background:rgba(12,16,22,.7);font:12px var(--mono);color:var(--muted)}
-.mchip.active{border-color:rgba(139,123,255,.55);background:rgba(139,123,255,.12)}
+.mchip{display:flex;align-items:center;gap:8px;padding:6px 11px;border-radius:10px;border:1px solid var(--line2);background:rgba(12,16,22,.7);font:12px var(--mono);color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s}
+.mchip:hover{border-color:var(--line);background:rgba(255,255,255,.04)}
+.mchip.active{border-color:rgba(139,123,255,.55);background:rgba(139,123,255,.12);cursor:default}
 .mchip b{color:var(--fg);font-weight:600}
 .mchip .bdot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
 .mchip .bdot.long{background:var(--good)} .mchip .bdot.short{background:var(--bad)} .mchip .bdot.flat{background:var(--late)}
 .mchip .pnl-pos{color:var(--good)} .mchip .pnl-neg{color:var(--bad)}
 .mchip .closed{color:var(--late)}
+.flatbtn{margin-top:10px;width:100%;padding:9px;border-radius:10px;border:1px solid rgba(255,93,108,.5);background:rgba(255,93,108,.12);color:var(--bad);font:600 12px var(--mono);letter-spacing:.04em;cursor:pointer;transition:background .15s}
+.flatbtn:hover{background:rgba(255,93,108,.22)}
+.flatbtn:active{transform:translateY(1px)}
+#sideBtns{display:flex}
+#sideBtns .flatbtn{margin-top:0;flex:1}
+.flatbtn.buybtn{border-color:rgba(63,214,138,.5);background:rgba(63,214,138,.12);color:var(--good)}
+.flatbtn.buybtn:hover{background:rgba(63,214,138,.22)}
+.flatbtn.sellbtn{border-color:rgba(255,93,108,.5);background:rgba(255,93,108,.12);color:var(--bad)}
+.brainbtn{margin-top:10px;width:100%;padding:8px;border-radius:10px;border:1px solid var(--line2);background:rgba(12,16,22,.7);color:var(--muted);font:600 11.5px var(--mono);letter-spacing:.04em;cursor:pointer;transition:background .15s}
+.brainbtn.on{border-color:rgba(63,214,138,.5);background:rgba(63,214,138,.1);color:var(--good)}
+.brainbtn:hover{background:rgba(255,255,255,.06)}
+.dirbtns{display:flex;gap:8px;margin-top:10px}
+.dirbtn{flex:1;padding:8px;border-radius:10px;border:1px solid var(--line2);background:rgba(12,16,22,.7);color:var(--muted);font:600 11.5px var(--mono);letter-spacing:.04em;cursor:pointer;transition:background .15s,border-color .15s}
+.dirbtn:hover{background:rgba(255,255,255,.06)}
+.dirbtn.active[data-d="buy"]{border-color:rgba(63,214,138,.55);background:rgba(63,214,138,.14);color:var(--good)}
+.dirbtn.active[data-d="sell"]{border-color:rgba(255,93,108,.55);background:rgba(255,93,108,.14);color:var(--bad)}
+.dirbtn.active[data-d="both"]{border-color:rgba(139,123,255,.55);background:rgba(139,123,255,.14);color:var(--fg)}
 .wait{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);font:13px var(--mono)}
 @media (max-width:1050px){.app{height:auto}.grid{grid-template-columns:1fr}.chart{min-height:300px}}
 </style>
@@ -113,10 +131,10 @@ body.clean .moneycard,body.clean .pnl{display:none!important}
         <div class="action"><div class="verb" id="verb">Waiting</div><div class="meta" id="verbMeta">first block…</div></div>
       </div>
       <div class="statebox" id="statebox"><span class="lbl">what Jev saw</span></div>
-      <div class="chart" id="chart"><div class="wait">connecting to Hyperliquid…</div></div>
+      <div class="chart" id="chart"><div class="wait">waiting for live quotes…</div></div>
       <div>
         <div class="dots" id="dots"></div>
-        <div class="foot"><span>one dot per decision · <span class="g">buy</span> · <span class="r">sell</span> · <span class="a">late</span> · ◆ = trade filled</span><span id="blockNote"></span></div>
+        <div class="foot"><span>trend ribbon · <span class="g">up</span> · <span class="r">down</span> · <span class="d">flat</span> · ◆ = trade filled</span><span id="blockNote"></span></div>
       </div>
     </div>
 
@@ -125,6 +143,13 @@ body.clean .moneycard,body.clean .pnl{display:none!important}
         <div class="eyebrow">Jev's latest call</div>
         <div class="big"><b id="bigSide">—</b><span id="bigConf"></span></div>
         <div class="brainline" id="brainLine" style="display:none"></div>
+        <button id="brainBtn" class="brainbtn" style="display:none"></button>
+        <button id="stratBtn" class="brainbtn" style="display:none"></button>
+        <div id="dirBtns" class="dirbtns" style="display:none">
+          <button id="dirBuy" class="dirbtn" data-d="buy">▲ Buys</button>
+          <button id="dirBoth" class="dirbtn" data-d="both">Both</button>
+          <button id="dirSell" class="dirbtn" data-d="sell">▼ Sells</button>
+        </div>
         <div class="bars">
           <span>buy</span><div class="bar"><i id="barBuy" style="width:0;background:var(--good)"></i></div><span class="v" id="pBuy">–</span>
           <span>sell</span><div class="bar"><i id="barSell" style="width:0;background:var(--bad)"></i></div><span class="v" id="pSell">–</span>
@@ -143,6 +168,11 @@ body.clean .moneycard,body.clean .pnl{display:none!important}
           <span class="k">Direction right</span><span class="v" id="mHit">–</span>
         </div>
         <div class="spark" id="spark"></div>
+        <button id="flatBtn" class="flatbtn" style="display:none">⚑ Close all positions</button>
+        <div id="sideBtns" style="display:none;gap:8px;margin-top:8px">
+          <button id="flatBuyBtn" class="flatbtn buybtn">▲ Close all BUYS</button>
+          <button id="flatSellBtn" class="flatbtn sellbtn">▼ Close all SELLS</button>
+        </div>
       </div>
       <div class="card feed">
         <div class="eyebrow">Feed · every Jev call</div>
@@ -284,7 +314,7 @@ function renderData() {
   if (S.brain) {
     const b = S.brain, ago = b.t ? Math.round((Date.now() / 1000 - b.t) / 60) + " min ago" : "thinking…";
     $("brainLine").style.display = "block";
-    $("brainLine").innerHTML = `<b>Claude's bias: ${(b.bias || "—").toUpperCase()}</b>${b.confidence != null ? ` · ${Math.round(100 * b.confidence)}%` : ""} · ${ago}<br>${b.reason || ""}`;
+    $("brainLine").innerHTML = `<b>${(b.model === "RON" ? "RON" : "Claude")}'s bias: ${(b.bias || "—").toUpperCase()}</b>${b.confidence != null ? ` · ${Math.round(100 * b.confidence)}%` : ""} · ${ago}<br>${b.reason || ""}`;
   }
   if ((S.venue || "") === "metaapi") {  // real broker equity, not the $1,000 paper view
     const cur = S.currency || "AUD";
@@ -301,8 +331,97 @@ function renderData() {
     const posTxt = j.pos > 0 ? `<b class="g">LONG ${Math.abs(j.qty)} lots</b>` : j.pos < 0 ? `<b class="r">SHORT ${Math.abs(j.qty)} lots</b>` : `<b>FLAT</b>`;
     $("sub").innerHTML = `<span>${posTxt}</span><span class="pnl">equity <b>${eq.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} ${cur}</b></span><span>P&L <b class="${j.net>0?'g':j.net<0?'r':''}">${fmtc(j.net)}</b></span><span>spread <b id="spr">${lastSpr}</b></span>`;
   }
+  const live = ["metaapi", "bybit"].includes(S.venue || "") && S.mode !== "dry";
+  $("flatBtn").style.display = live ? "block" : "none";
+  $("sideBtns").style.display = live ? "flex" : "none";
+  const jevMode = S.strategy_mode === "jev";
+  // strategy toggle: OURS (trend + conviction) vs JEV (raw signals open trades)
+  const st = $("stratBtn");
+  if (st) {
+    if (live) {
+      st.style.display = "block";
+      st.className = "brainbtn" + (jevMode ? "" : " on");
+      st.textContent = jevMode
+        ? "Strategy: JEV — raw signals open trades · tap for our strategy"
+        : "Strategy: OURS — trend + conviction · tap for Jev";
+      st.dataset.jev = jevMode ? "1" : "0";
+    } else st.style.display = "none";
+  }
+  // direction tiles: which side the bot may open
+  const db = $("dirBtns");
+  if (db) {
+    db.style.display = live ? "flex" : "none";
+    const cur = S.direction || "both";
+    ["dirBuy", "dirBoth", "dirSell"].forEach((id) => {
+      const el = $(id); if (el) el.classList.toggle("active", el.dataset.d === cur);
+    });
+  }
+  const bb = $("brainBtn");
+  // brain only drives OUR strategy — hide the toggle in Jev mode where it has no effect
+  if (!jevMode && ((S.brain_source && S.brain_source !== "off") || S.brain)) {
+    const on = S.brain_on !== false;
+    const nm = (S.brain_source === "ron") ? "RON" : "Claude";
+    bb.style.display = "block";
+    bb.className = "brainbtn" + (on ? " on" : "");
+    bb.textContent = on ? `${nm} brain: ON — tap to turn off` : `${nm} brain: OFF (trend + Jev) — tap to turn on`;
+    bb.dataset.on = on ? "1" : "0";
+  } else {
+    bb.style.display = "none";
+  }
   renderSpark(); renderDots(); renderFeed();
 }
+
+(function setupControls() {
+  const flat = document.getElementById("flatBtn");
+  if (flat) flat.addEventListener("click", async () => {
+    if (!confirm("Close ALL open positions now?")) return;
+    const label = flat.textContent; flat.textContent = "closing…";
+    try { await fetch("/control/flatten", {cache: "no-store"}); } catch (e) {}
+    setTimeout(() => { flat.textContent = label; }, 2500);
+  });
+  const sideBtn = (id, path, msg) => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.addEventListener("click", async () => {
+      if (!confirm(msg)) return;
+      const label = b.textContent; b.textContent = "closing…";
+      try { await fetch(path, {cache: "no-store"}); } catch (e) {}
+      setTimeout(() => { b.textContent = label; }, 2500);
+    });
+  };
+  sideBtn("flatBuyBtn", "/control/flatten-buys", "Close ALL open BUY positions now?");
+  sideBtn("flatSellBtn", "/control/flatten-sells", "Close ALL open SELL positions now?");
+  const strip = document.getElementById("mstrip");
+  if (strip) strip.addEventListener("click", async (ev) => {
+    const chip = ev.target.closest(".mchip");
+    if (!chip || !chip.dataset.sym || chip.dataset.sym === (S && S.symbol)) return;
+    if (S) { S.symbol = chip.dataset.sym; renderStrip(); }  // instant highlight; chart repaints on next poll
+    try { await fetch("/control/primary?sym=" + encodeURIComponent(chip.dataset.sym), {cache: "no-store"}); } catch (e) {}
+  });
+  const brain = document.getElementById("brainBtn");
+  if (brain) brain.addEventListener("click", async () => {
+    const turningOff = brain.dataset.on === "1";
+    brain.textContent = "…";
+    try { await fetch(turningOff ? "/control/brain-off" : "/control/brain-on", {cache: "no-store"}); } catch (e) {}
+  });
+  const strat = document.getElementById("stratBtn");
+  if (strat) strat.addEventListener("click", async () => {
+    const toJev = strat.dataset.jev !== "1";  // currently ours → switch to jev
+    if (S) S.strategy_mode = toJev ? "jev" : "ours";  // instant relabel
+    strat.textContent = "…";
+    try { await fetch("/control/strategy?m=" + (toJev ? "jev" : "ours"), {cache: "no-store"}); } catch (e) {}
+  });
+  const dir = document.getElementById("dirBtns");
+  if (dir) dir.addEventListener("click", async (ev) => {
+    const b = ev.target.closest(".dirbtn");
+    if (!b || !b.dataset.d) return;
+    if (S) S.direction = b.dataset.d;  // instant highlight
+    ["dirBuy", "dirBoth", "dirSell"].forEach((id) => {
+      const el = document.getElementById(id); if (el) el.classList.toggle("active", el.dataset.d === b.dataset.d);
+    });
+    try { await fetch("/control/direction?d=" + b.dataset.d, {cache: "no-store"}); } catch (e) {}
+  });
+})();
 
 function renderSpark() {
   const el = $("spark"), j = S.book.equity;
@@ -331,7 +450,7 @@ function renderStrip() {
     const pnl = +it.unrealized || 0, pnlCls = pnl > 0 ? "pnl-pos" : pnl < 0 ? "pnl-neg" : "";
     const active = it.symbol === S.symbol ? " active" : "";
     const closed = it.market_open === false ? ` <span class="closed">· closed</span>` : "";
-    return `<div class="mchip${active}"><span class="bdot ${bias}"></span><b>${it.name}</b>` +
+    return `<div class="mchip${active}" data-sym="${it.symbol}" title="Show ${it.name} in the main chart"><span class="bdot ${bias}"></span><b>${it.name}</b>` +
       `<span>${bias.toUpperCase()}</span><span>${posTxt}</span>` +
       `<span class="${pnlCls}">${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}</span>${closed}</div>`;
   }).join("");
@@ -339,7 +458,9 @@ function renderStrip() {
 
 function renderDots() {
   const el = $("dots"), n = Math.max(20, Math.floor(el.clientWidth / 10));
-  el.innerHTML = answered().slice(-n).map((d) => `<i style="background:${colorFor(d)}"></i>`).join("") +
+  // trend ribbon: colour each mark by the 30s trend (up = green, down = red, flat = dim)
+  const tcol = (d) => { const r = (d.state || {}).return_30s_bps || 0; return r > 0.2 ? "var(--good)" : r < -0.2 ? "var(--bad)" : "var(--dim)"; };
+  el.innerHTML = answered().slice(-n).map((d) => `<i style="background:${tcol(d)}"></i>`).join("") +
     (S.status === "running" ? `<i style="background:transparent;border:1.5px solid var(--jev);animation:pulse 1s infinite"></i>` : "");
 }
 

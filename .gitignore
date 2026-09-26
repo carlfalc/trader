@@ -2,3 +2,14 @@
 .venv/
 results/
 __pycache__/
+
+# runtime dashboard sentinels
+STOP
+FLATTEN
+FLATTEN_BUYS
+FLATTEN_SELLS
+BRAIN_OFF
+PRIMARY
+DIRECTION
+STRATEGY
+results/

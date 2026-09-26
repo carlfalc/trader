@@ -46,6 +46,13 @@ from .metaapi import MetaApiClient, MetaApiError, MetaApiMarket, metaapi_mode
 from .server import serve
 
 STOP_FILE = Path(__file__).resolve().parent.parent / "STOP"
+FLATTEN_FILE = Path(__file__).resolve().parent.parent / "FLATTEN"  # dashboard "close all" button
+BRAIN_OFF_FILE = Path(__file__).resolve().parent.parent / "BRAIN_OFF"  # dashboard brain on/off tile
+FLATTEN_BUYS_FILE = Path(__file__).resolve().parent.parent / "FLATTEN_BUYS"  # dashboard "Close all BUYS" tile
+FLATTEN_SELLS_FILE = Path(__file__).resolve().parent.parent / "FLATTEN_SELLS"  # dashboard "Close all SELLS" tile
+PRIMARY_FILE = Path(__file__).resolve().parent.parent / "PRIMARY"  # dashboard: which instrument fills the big chart
+DIRECTION_FILE = Path(__file__).resolve().parent.parent / "DIRECTION"  # dashboard: buy / sell / both (which side the bot may open)
+STRATEGY_FILE = Path(__file__).resolve().parent.parent / "STRATEGY"  # dashboard: "jev" = raw Jev signals, absent = our strategy
 
 
 def canonical_of(broker_symbol: str) -> str | None:
@@ -92,7 +99,11 @@ class SymbolEngine:
         self.direction = direction  # "both" | "buy" (longs only) | "sell" (shorts only)
         self.jev, self.late_ms, self.g = jev, late_ms, gstate
         self.market = MetaApiMarket(client, symbol, poll_s=float(os.getenv("METAAPI_POLL_S", "0.5")))
-        self.brain = Brain(symbol, brain_every, summary_fn=metaapi_summary_fn(client))
+        if gstate.get("brain_source") == "ron":
+            from .ronbrain import RonBrain
+            self.brain = RonBrain(symbol, brain_every)  # GAINEDGE's engine sets the bias
+        else:
+            self.brain = Brain(symbol, brain_every, summary_fn=metaapi_summary_fn(client))
         self.lock = threading.Lock()
         self.decisions: list[dict] = []
         self.fills: list[dict] = []
@@ -124,36 +135,67 @@ class SymbolEngine:
             return f"hold · halted ({self.g['halted']})"
         if not self.market.market_open:
             return "hold · market closed"
-        if self.g.get("use_brain", True):
-            b = self.brain.current()
-            bias = b.get("bias")
-            if bias is None and not b.get("degraded"):
-                return "hold · waiting for the brain's first read"
-            # degraded (brain unreachable) → bias None → trade on trend + Jev, no gate
-        else:
-            bias = None  # brain off: trade on Jev + strategy alone
         pos = self.pos_sign()
-        market_view = {**rec["state"]}
-        if bias is not None:
-            market_view["claude_bias"] = bias
-        try:
-            choice = strategy.decide({"side": rec["side"], "conf": rec["conf"]},
-                                     market_view, pos, time.time() - self.last_trade_t)
-        except Exception as exc:
-            return f"hold · strategy error: {str(exc)[:60]}"
+        direction = self.g.get("direction", self.direction)  # live from the dashboard tiles
+        # if the open position's side is no longer allowed by the direction choice, close it
+        if pos > 0 and direction == "sell":
+            self.flatten(); self.last_trade_t = time.time(); return "flat · sells only now"
+        if pos < 0 and direction == "buy":
+            self.flatten(); self.last_trade_t = time.time(); return "flat · buys only now"
+
+        mode = self.g.get("strategy_mode", "ours")  # live from the dashboard strategy tile
+        if mode == "jev":
+            # ORIGINAL Jev behaviour: Jev's own call opens the trade directly — no brain,
+            # no trend gate — above a base confidence, with a short cooldown to avoid churn.
+            jev_min = float(self.g.get("jev_min", 0.55))
+            cool = float(self.g.get("jev_cool", 20.0))
+            side, conf = rec.get("side"), (rec.get("conf") or 0)
+            if side not in ("buy", "sell") or conf < jev_min:
+                choice = f"hold · Jev conf < {jev_min:.2f}"
+            elif pos and time.time() - self.last_trade_t < cool:
+                choice = "hold · Jev cooldown"
+            else:
+                choice = side
+        else:
+            # OUR strategy: brain bias (RON/Claude) + trend + high conviction.
+            if self.g.get("brain_active", self.g.get("use_brain", True)):
+                b = self.brain.current()
+                bias = b.get("bias")
+                if bias is None and not b.get("degraded"):
+                    return "hold · waiting for the brain's first read"
+                # degraded (brain unreachable / no confirmed setup) → bias None → trend + Jev
+            else:
+                bias = None  # brain off: trade on Jev + strategy alone
+            market_view = {**rec["state"]}
+            if bias is not None:
+                market_view["claude_bias"] = bias
+            try:
+                choice = strategy.decide({"side": rec["side"], "conf": rec["conf"]},
+                                         market_view, pos, time.time() - self.last_trade_t)
+            except Exception as exc:
+                return f"hold · strategy error: {str(exc)[:60]}"
         if choice not in ("buy", "sell", "flat"):
             return str(choice or "hold")
         want = {"buy": 1, "sell": -1, "flat": 0}[choice]
         # direction filter: if this side isn't allowed, don't take it — go flat instead of reversing
-        if want > 0 and self.direction == "sell":
+        if want > 0 and direction == "sell":
             return "flat" if pos else "hold · sells only"
-        if want < 0 and self.direction == "buy":
+        if want < 0 and direction == "buy":
             return "flat" if pos else "hold · buys only"
         if want == pos:
             return "hold · already " + {1: "long", -1: "short", 0: "flat"}[want]
+        # Reconcile against the BROKER's real position before trading — never stack.
         try:
-            if pos != 0:
-                self.client.flatten(self.symbol)
+            live_lots, _ = self.client.net_position(self.symbol)
+        except MetaApiError:
+            live_lots = self.pos_lots
+        live = 1 if live_lots > 1e-9 else -1 if live_lots < -1e-9 else 0
+        self.pos_lots = live_lots
+        if want == live:
+            return "hold · already " + {1: "long", -1: "short", 0: "flat"}[want]
+        try:
+            if live != 0:
+                self.client.flatten(self.symbol)  # close what's ACTUALLY open (robust, retries)
                 self.pos_lots = 0.0
             if want != 0:
                 side = "buy" if want > 0 else "sell"
@@ -231,11 +273,18 @@ class SymbolEngine:
 def run_fxbot(symbols: list[str], pace_s: float, minutes: float, port: int, open_browser: bool,
               late_ms: float = 1500, brain_every: float = 10.0,
               lots: float | None = None, direction: str = "both", max_loss: float | None = None,
-              use_brain: bool = True, min_conf: float | None = None, min_hold: float | None = None) -> None:
+              brain_source: str = "claude", min_conf: float | None = None, min_hold: float | None = None,
+              take_profit: float | None = None, stop_loss: float | None = None) -> None:
     symbols = [s.strip().upper() for s in symbols if s.strip()]
     if not symbols:
         raise SystemExit("  no symbols given")
     direction = direction if direction in ("both", "buy", "sell") else "both"
+    brain_source = brain_source if brain_source in ("claude", "ron", "off") else "claude"
+    use_brain = brain_source != "off"
+    # quick-win take-profit and (optional) stop-loss, in account currency per position
+    take_profit = float(take_profit if take_profit is not None else os.getenv("TAKE_PROFIT_USD", "25") or 0)
+    stop_loss = float(stop_loss if stop_loss is not None else os.getenv("STOP_LOSS_USD", "20") or 0)
+    tp_on, sl_on = take_profit > 0, stop_loss > 0
     if min_conf is not None:
         strategy.SETTINGS["min_conf"] = float(min_conf)
     if min_hold is not None:
@@ -255,9 +304,12 @@ def run_fxbot(symbols: list[str], pace_s: float, minutes: float, port: int, open
     dir_label = {"both": "buys & sells", "buy": "buys only", "sell": "sells only"}[direction]
     loss_label = f"daily loss limit ${max_loss:,.0f}" if loss_on else "no daily loss limit"
     mode_label = {"demo": "MetaApi DEMO · fake money", "live": "MetaApi LIVE · REAL MONEY"}[mode]
-    brain_phrase = f"Claude sets each bias every {brain_every:g} min" if use_brain else "brain OFF (Jev + strategy only)"
+    brain_name = {"claude": "Claude", "ron": "RON (GAINEDGE)"}.get(brain_source, "Claude")
+    brain_phrase = f"{brain_name} sets each bias every {brain_every:g} min" if use_brain else "brain OFF (Jev + strategy only)"
+    tpsl = ([f"take-profit ${take_profit:g}"] if tp_on else []) + ([f"stop ${stop_loss:g}"] if sl_on else [])
+    tpsl_label = " · ".join(tpsl) if tpsl else "no TP/SL"
     header("THE JEV FX BOT", f"{names} · {mode_label} · {dir_label} · {brain_phrase} · "
-           f"strategy: {strategy.DESCRIPTION} · {max_lots:g} lots each · {loss_label}")
+           f"strategy: {strategy.DESCRIPTION} · {max_lots:g} lots each · {tpsl_label} · {loss_label}")
     if not use_brain:
         console.print("  [#f5b53d]Brain OFF: no Claude direction gate — Jev's calls trade straight through the strategy.[/]")
     if max_lots >= 1 and loss_on:
@@ -286,9 +338,24 @@ def run_fxbot(symbols: list[str], pace_s: float, minutes: float, port: int, open
     out = RESULTS / "loop.json"
     log = open(RESULTS / "fxbot_log.jsonl", "a")
     stop = threading.Event()
-    g = {"halted": None, "pace": pace_s, "interval": pace_s, "streak": 0, "log": log, "use_brain": use_brain}
+    g = {"halted": None, "pace": pace_s, "interval": pace_s, "streak": 0, "log": log,
+         "use_brain": use_brain, "brain_source": brain_source, "brain_active": use_brain,
+         "direction": direction, "strategy_mode": "ours",
+         "jev_min": float(os.getenv("JEV_MODE_MIN_CONF", "0.55") or 0.55),
+         "jev_cool": float(os.getenv("JEV_MODE_COOLDOWN_S", "20") or 20)}
     engines = [SymbolEngine(client, s, max_lots, brain_every, jev, late_ms, g, direction) for s in symbols]
     by_symbol = {e.symbol: e for e in engines}
+    for f in (FLATTEN_FILE, FLATTEN_BUYS_FILE, FLATTEN_SELLS_FILE, PRIMARY_FILE,
+              DIRECTION_FILE, STRATEGY_FILE):
+        f.unlink(missing_ok=True)  # clear stale dashboard sentinels from a previous run
+    if os.getenv("FLATTEN_ON_START", "true").lower() != "false":  # start from a clean slate
+        for e in engines:
+            try:
+                n = e.client.flatten(e.symbol)
+                if n:
+                    console.print(f"  cleared {n} pre-existing {e.symbol} position(s) on start")
+            except Exception:
+                pass
     for e in engines:
         e.start(stop)
 
@@ -346,6 +413,12 @@ def run_fxbot(symbols: list[str], pace_s: float, minutes: float, port: int, open
 
     def write(status: str) -> None:
         primary = engines[0]
+        try:  # dashboard: click a strip tile to make it the big chart
+            if PRIMARY_FILE.exists():
+                want = PRIMARY_FILE.read_text().strip()
+                primary = next((e for e in engines if e.symbol == want), engines[0])
+        except Exception:
+            pass
         net = acct["equity"] - acct["equity_start"]
         acct["equity_curve"].append([round(time.time(), 2), round(net, 3), round(net, 3)])
         del acct["equity_curve"][:-2400]
@@ -362,6 +435,8 @@ def run_fxbot(symbols: list[str], pace_s: float, minutes: float, port: int, open
             "maker_fee_bps": 0, "taker_fee_bps": 0, "counts": det["counts"], "blocks": det["blocks"],
             "last_ms": det["last_ms"], "avg_ms": det["avg_ms"], "hits": det["hits"], "scored": det["scored"],
             "brain": det["brain"], "order": None, "equity": round(acct["equity"], 2),
+            "brain_on": g.get("brain_active", use_brain), "brain_source": brain_source,
+            "direction": g.get("direction", direction), "strategy_mode": g.get("strategy_mode", "ours"),
             "balance": round(acct["balance"], 2), "decisions": det["decisions"], "fills": det["fills"],
             "book": {"pos": primary.pos_sign(), "qty": primary.pos_lots, "gross": round(net, 3), "fees": 0.0,
                      "net": round(net, 3), "trades": len(primary.fills), "equity": acct["equity_curve"]},
@@ -372,12 +447,74 @@ def run_fxbot(symbols: list[str], pace_s: float, minutes: float, port: int, open
         tmp.write_text(json.dumps(payload, default=str))
         os.replace(tmp, out)
 
+    def check_wins() -> None:
+        """Bank a quick win at +take_profit, or cut a loser at -stop_loss (per position)."""
+        if g["halted"] or not (tp_on or sl_on):
+            return
+        for e in engines:
+            if e.pos_sign() == 0:
+                continue
+            u = e.unrealized
+            hit = "take-profit" if (tp_on and u >= take_profit) else ("stop-loss" if (sl_on and u <= -stop_loss) else None)
+            if not hit:
+                continue
+            side = "sell" if e.pos_sign() > 0 else "buy"
+            qty, mid = abs(e.pos_lots), (e.market.snapshot() or {}).get("mid")
+            try:
+                e.client.flatten(e.symbol)
+            except MetaApiError:
+                continue
+            e.pos_lots, e.last_trade_t = 0.0, time.time()
+            e.fills.append({"t": time.time(), "side": side, "px": mid, "qty": qty, "kind": hit,
+                            "call": None, "wait_s": 0})
+            mark = "✔" if hit == "take-profit" else "✖"
+            console.print(f"  {time.strftime('%H:%M:%S')}  {e.symbol:<7} {mark} {hit} {u:+.2f} {currency}")
+
     def writer():
         tick = 0
         while not stop.is_set():
             try:
-                if tick % 5 == 0:
+                g["brain_active"] = use_brain and not BRAIN_OFF_FILE.exists()  # dashboard RON on/off tile
+                try:  # dashboard direction tiles (BUYS / SELLS / BOTH)
+                    d = DIRECTION_FILE.read_text().strip() if DIRECTION_FILE.exists() else direction
+                    g["direction"] = d if d in ("both", "buy", "sell") else direction
+                except Exception:
+                    pass
+                g["strategy_mode"] = "jev" if STRATEGY_FILE.exists() else "ours"  # dashboard strategy tile
+                if FLATTEN_FILE.exists():  # dashboard "Close all" button
+                    for e in engines:
+                        try:
+                            e.client.flatten(e.symbol)
+                            e.pos_lots, e.last_trade_t = 0.0, time.time()
+                        except Exception:
+                            pass
+                    try:
+                        FLATTEN_FILE.unlink()
+                    except OSError:
+                        pass
+                    console.print("  ⚑ close-all requested from dashboard — positions closed")
+                for sentinel, side, want_sign, label in (
+                    (FLATTEN_BUYS_FILE, "buy", 1, "BUYS"),
+                    (FLATTEN_SELLS_FILE, "sell", -1, "SELLS"),
+                ):
+                    if sentinel.exists():  # dashboard "Close all BUYS/SELLS" tile
+                        try:
+                            res = engines[0].client.close_all(side=side)
+                        except Exception as exc:
+                            res = {"error": str(exc)[:80]}
+                        for e in engines:  # only the matching side is now flat
+                            if e.pos_sign() == want_sign:
+                                e.pos_lots, e.last_trade_t = 0.0, time.time()
+                        try:
+                            sentinel.unlink()
+                        except OSError:
+                            pass
+                        refresh_account()
+                        console.print(f"  ⚑ close-all {label} from dashboard — {res}")
+                holding = any(e.pos_sign() for e in engines)
+                if tick % (1 if holding else 5) == 0:  # refresh fast while a position is open
                     refresh_account()
+                check_wins()
                 risk_check()
                 write("running")
             except Exception as exc:

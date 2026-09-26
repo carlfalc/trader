@@ -159,7 +159,7 @@ def check_metaapi(symbols: list[str]) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(prog="jevlab")
-    ap.add_argument("command", choices=["check", "loop", "newsroom", "bot", "fxcheck", "fxbot"])
+    ap.add_argument("command", choices=["check", "loop", "newsroom", "bot", "fxcheck", "fxbot", "fxflat"])
     ap.add_argument("--coin", default="HYPE", help="loop/bot: the coin to trade")
     ap.add_argument("--symbols", default="XAUUSD,HK50", help="fxbot: comma list of GAINEDGE instruments")
     ap.add_argument("--lots", type=float, default=None, help="fxbot: lots per instrument (default MAX_LOTS or 2)")
@@ -167,12 +167,18 @@ def main() -> None:
                     help="fxbot: allow buys only, sells only, or both")
     ap.add_argument("--max-loss", type=float, default=None, dest="max_loss",
                     help="fxbot: daily loss cap in account $ (0 = no limit; default MAX_DAILY_LOSS_USD or 50)")
+    ap.add_argument("--brain", choices=["claude", "ron", "off"], default="claude", dest="brain_src",
+                    help="fxbot: which brain sets the bias — claude, ron (GAINEDGE), or off")
     ap.add_argument("--no-brain", action="store_true", dest="no_brain",
-                    help="fxbot: skip the Claude bias gate — trade on Jev + strategy alone")
+                    help="fxbot: shorthand for --brain off (trade on Jev + strategy alone)")
     ap.add_argument("--min-conf", type=float, default=None, dest="min_conf",
                     help="fxbot: minimum Jev conviction to trade, 0-1 (default 0.85)")
     ap.add_argument("--min-hold", type=float, default=None, dest="min_hold",
                     help="fxbot: seconds to wait between entries (default 120)")
+    ap.add_argument("--take-profit", type=float, default=None, dest="take_profit",
+                    help="fxbot: bank a position at +$ profit (default 25; 0 = off)")
+    ap.add_argument("--stop-loss", type=float, default=None, dest="stop_loss",
+                    help="fxbot: cut a position at -$ loss (default 20; 0 = off)")
     ap.add_argument("--minutes", type=float, default=10.0, help="loop/bot: how long to run (0 = until stopped)")
     ap.add_argument("--pace", type=float, default=0.3, help="loop: fastest seconds between Jev calls")
     ap.add_argument("--late-ms", type=float, default=1500, help="loop: answers slower than this are ignored")
@@ -196,6 +202,23 @@ def main() -> None:
     if a.command == "fxcheck":
         check_metaapi(a.symbols.split(","))
         return
+    if a.command == "fxflat":
+        from .metaapi import MetaApiClient, MetaApiError
+        console.print("[bold #8b7bff]jev-starter · fxflat[/] [dim]· close ALL open positions on the MetaApi account[/]")
+        try:
+            c = MetaApiClient()
+            info = c.account_information()
+            eq0 = float(info.get("equity") or info.get("balance") or 0)
+            cur = info.get("currency", "")
+            n = len(c.positions())
+            console.print(f"  {n} open position(s) · equity {eq0:,.2f} {cur} · closing all…")
+            res = c.close_all()
+            eq1 = float((c.account_information() or {}).get("equity") or eq0)
+            console.print(f"  [#3fd68a]closed {res['closed']}[/] · banked ~{res['profit']:+.2f} {cur} · "
+                          f"equity {eq0:,.2f} → {eq1:,.2f} {cur}")
+        except MetaApiError as exc:
+            console.print(f"  [#ff5d6c]MetaApi error:[/] {exc}")
+        return
     if a.command == "loop":
         from .loop import run_loop
         run_loop(a.coin.upper(), a.pace, a.minutes, a.port, not a.no_open, a.late_ms, not a.taker, a.maker_wait)
@@ -206,9 +229,11 @@ def main() -> None:
             return
     elif a.command == "fxbot":
         from .fxbot import run_fxbot
+        brain_source = "off" if a.no_brain else a.brain_src
         run_fxbot([s for s in a.symbols.split(",")], a.pace, a.minutes, a.port, not a.no_open,
                   a.late_ms, a.brain_every, a.lots, a.direction, a.max_loss,
-                  use_brain=not a.no_brain, min_conf=a.min_conf, min_hold=a.min_hold)
+                  brain_source=brain_source, min_conf=a.min_conf, min_hold=a.min_hold,
+                  take_profit=a.take_profit, stop_loss=a.stop_loss)
         if a.no_open and not a.minutes:
             return
     else:

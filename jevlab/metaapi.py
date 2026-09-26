@@ -190,6 +190,27 @@ class MetaApiClient:
             time.sleep(0.3)
         return closed
 
+    def close_all(self, side: str | None = None) -> dict:
+        """Close open positions on the account, retrying until clear. side=None closes
+        everything; side='buy'/'sell' closes only longs/shorts. Returns {closed, profit}."""
+        want = {"buy": "POSITION_TYPE_BUY", "sell": "POSITION_TYPE_SELL"}.get(side)
+        seen: dict[str, float] = {}
+        for _ in range(5):
+            ps = [p for p in self.positions() if want is None or p.get("type") == want]
+            if not ps:
+                break
+            for p in ps:
+                pid = p.get("id")
+                if pid is None:
+                    continue
+                seen.setdefault(pid, float(p.get("profit") or p.get("unrealizedProfit") or 0))
+                try:
+                    self.close_position(pid)
+                except MetaApiError:
+                    pass
+            time.sleep(0.4)
+        return {"closed": len(seen), "profit": round(sum(seen.values()), 2)}
+
 
 class MetaApiMarket:
     """Live one-symbol feed by polling MetaApi current-price, exposing the same
